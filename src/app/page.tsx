@@ -1,14 +1,12 @@
 import {isMobile} from '@/lib/client-utils'
 import {headers} from 'next/headers'
-import DesktopBackground from '@/components/desktop-background'
+import Background from '@/components/background'
 
 export default async function Home() {
 
-    const desktop = !isMobile((await headers()).get('User-Agent') || '')
     return (
-        <div className={'h-dvh min-h-dvh bg-black relative'}>
-
-            {desktop ? <DesktopBackground/> : <></>}
+        <div className={'h-dvh min-h-dvh relative bg-white'}>
+            <Background className={'absolute w-dvw h-dvh'}/>
         </div>
     )
 }
