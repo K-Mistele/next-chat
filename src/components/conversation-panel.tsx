@@ -1,28 +1,21 @@
 'use client'
 
-import {MessageCircleQuestionIcon} from 'lucide-react'
 import {useChat} from 'ai/react'
+import type {Message} from 'ai'
 import {generateId} from 'ai'
 import {ChatMessages} from '@/components/chat-messages'
+import {useEffect, use} from 'react'
 
 export interface ConversationPanelProps {
     id: string
     query: string
+    existingMessages: Promise<Array<Message>>
 }
 
-const messages = [
-    'Hello! How can I assist you today? If you have any questions or need information on a specific topic, feel free to ask!'
-]
+export function ConversationPanel({id, query, existingMessages}: ConversationPanelProps) {
 
-const related = [
-    'What are the key differences between the two?',
-    'Can you explain more simply?',
-    'Can you help me configure tailwind?'
-]
-
-
-export function ConversationPanel({id, query}: ConversationPanelProps) {
-
+    const initialMessages = use(existingMessages)
+    // TODO initial messages should be looked up in parent RSC, and populated. if not
     const {
         messages,
         input,
@@ -30,11 +23,16 @@ export function ConversationPanel({id, query}: ConversationPanelProps) {
         append
     } = useChat({
         id: id,
-        initialMessages: [{role: 'user', content: query, id: generateId()}]
+        initialMessages: initialMessages,
+        api: `/api/chat`
     })
 
+    useEffect(() => {
+        if (!initialMessages.length) append({role: 'user', content: query, id: generateId()})
+    }, [])
+
     return (
-        <div className={'flex flex-col space-y-2'}>
+        <div>
             <ChatMessages messages={messages} id={id}/>
         </div>
     )
