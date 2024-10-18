@@ -6,8 +6,7 @@ export function Header () {
             <header className={'w-full p-1 md:p-2 flex justify-between items-center z-10 backgroup-blur bg-background/80'}>
 
                 {/* Left Side*/}
-                <div>
-                </div>
+                <div></div>
 
                 {/* Right side*/}
                 <div className={'flex items-center space-x-1'}>

@@ -14,7 +14,7 @@ export function Search (){
                         Chat with Next.js Docs
                     </Label>
                     <Label className={'text-sm text-muted-foreground text-center'}>
-                        Wish Vercel shipped this already? Us too. So we did.
+                        Wish Vercel shipped this already? Me too. So I did.
                     </Label>
                 </div>
             </div>

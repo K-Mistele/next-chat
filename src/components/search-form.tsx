@@ -1,22 +1,20 @@
 'use client'
+
 import {
     Select,
     SelectContent, SelectItem,
     SelectTrigger,
     SelectValue
 } from '@/components/ui/select'
-import {ArrowRight, ArrowRightIcon, TriangleIcon} from 'lucide-react'
+import {ArrowRightIcon, TriangleIcon} from 'lucide-react'
 import {useEffect, useRef, useState} from 'react'
 import Textarea from 'react-textarea-autosize'
-import {useRouter} from 'next/navigation'
 import {cn} from '@/lib/utils'
-import {exampleMessages} from '@/lib/constants'
 import {Button} from '@/components/ui/button'
 import {EmptyScreen} from '@/components/empty-screen'
 
 export function SearchForm() {
 
-    const router = useRouter()
     // Create a ref for the input so that we can auto-focus on it once the page loads
     const inputRef = useRef<HTMLTextAreaElement>(null)
     const [isComposing, setIsComposing] = useState(false)
@@ -65,6 +63,7 @@ export function SearchForm() {
     }
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        console.log(`Handling submit for form!`)
         e.preventDefault()
         const formData = new FormData(e.currentTarget)
         await handleQuerySubmit(input, formData)
@@ -179,6 +178,15 @@ export function SearchForm() {
                     onFocus={() => setShowEmptyScreen(true)}
                     onBlur={() => setShowEmptyScreen(false)}
                 />
+                <div className={'absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center'}>
+                    <div className={'relative w-8 h-8 flex items-center justify-enx'}>
+                        <Button className={cn(
+                            input.length ? 'visible' : 'invisible',
+                        )} type={'submit'} size={'icon'} variant={'ghost'}>
+                            <ArrowRightIcon className={''}/>
+                        </Button>
+                    </div>
+                </div>
             </div>
 
             <EmptyScreen submitMessage={(message: string) => setInput(message)} visible={showEmptyScreen}/>
