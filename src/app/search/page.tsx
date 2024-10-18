@@ -1,8 +1,6 @@
 import {redirect} from 'next/navigation'
-import {MessageCircleQuestionIcon} from 'lucide-react'
 import {ConversationPanel} from '@/components/conversation-panel'
 import {generateId} from 'ai'
-import {use} from 'sswr'
 
 export default async function SearchPage({
     searchParams

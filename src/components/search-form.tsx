@@ -7,12 +7,12 @@ import {
     SelectValue
 } from '@/components/ui/select'
 import {ArrowRightIcon, TriangleIcon} from 'lucide-react'
-import {useEffect, useRef, useState} from 'react'
+import {type FormEvent, useEffect, useRef, useState} from 'react'
 import Textarea from 'react-textarea-autosize'
 import {cn} from '@/lib/utils'
 import {Button} from '@/components/ui/button'
 import {EmptyScreen} from '@/components/empty-screen'
-
+import {useRouter} from 'next/navigation'
 export function SearchForm() {
 
     // Create a ref for the input so that we can auto-focus on it once the page loads
@@ -20,8 +20,9 @@ export function SearchForm() {
     const [isComposing, setIsComposing] = useState(false)
     const [enterDisabled, setEnterDisabled] = useState(false)
     const [input, setInput] = useState('')
+    const [source, setSource] = useState<string>('app')
     const [showEmptyScreen, setShowEmptyScreen] = useState(false)
-
+    const router = useRouter()
 
     useEffect(() => {
         // focus on input when the page loads
@@ -38,55 +39,30 @@ export function SearchForm() {
         }, 300);
     };
 
-    async function handleQuerySubmit(query: string, formData?: FormData) {
-        setInput(query)
-
-        /*
-        // Add user message to UI state
-        setMessages(currentMessages => [
-            ...currentMessages,
-            {
-                id: generateId(),
-                component: <UserMessage message={query} />
-            }
-        ])
-
-        // Submit and get response message
-        const data = formData || new FormData()
-        if (!formData) {
-            data.append('input', query)
-        }
-        const responseMessage = await submit(data)
-        setMessages(currentMessages => [...currentMessages, responseMessage])
-        */
-
-    }
-
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        console.log(`Handling submit for form!`)
+    async function handleSubmit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault()
-        const formData = new FormData(e.currentTarget)
-        await handleQuerySubmit(input, formData)
+        await router.push(`/search?query=${input}&source=${source}`)
     }
+
 
     return (
         <form className={'max-w-2xl w-full px-6 space-y-2'} onSubmit={handleSubmit}>
             {/* Select whether we're using the app or pages router*/}
             <div className={'h-10 w-full flex items-center space-x-2'}>
-                <Select defaultValue={'approuter'}>
+                <Select defaultValue={'approuter'} name={'source'} value={source} onValueChange={setSource}>
                     <SelectTrigger className={'w-[180px] border-none focus:ring-2'}>
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value={'approuter'}
+                        <SelectItem value={'app'}
                                     className={'bg-background hover:bg-background'}>
                             <div className={'flex flex-row items-center justify-start space-x-2'}>
                                 <div
                                     className="w-8 h-8 rounded-md border flex items-center justify-center border-blue-400 bg-blue-100 bg-opacity-10 text-blue-700">
-                                    <svg data-testid="geist-icon" height="16" stroke-linejoin="round"
+                                    <svg data-testid="geist-icon" height="16" strokeLinejoin="round"
                                          style={{width: '16px', height: '16px', color: 'currentcolor'}}
                                          viewBox="0 0 16 16" width="16">
-                                        <path fill-rule="evenodd" clip-rule="evenodd"
+                                        <path fillRule="evenodd" clipRule="evenodd"
                                               d="M8 0.154663L8.34601 0.334591L14.596 3.58459L15 3.79466V4.25V11.75V12.2053L14.596 12.4154L8.34601 15.6654L8 15.8453L7.65399 15.6654L1.40399 12.4154L1 12.2053V11.75V4.25V3.79466L1.40399 3.58459L7.65399 0.334591L8 0.154663ZM2.5 11.2947V5.44058L7.25 7.81559V13.7647L2.5 11.2947ZM8.75 13.7647L13.5 11.2947V5.44056L8.75 7.81556V13.7647ZM8 1.84534L12.5766 4.22519L7.99998 6.51352L3.42335 4.2252L8 1.84534Z"
                                               fill="currentcolor"></path>
                                     </svg>
@@ -95,14 +71,14 @@ export function SearchForm() {
                                 <div>App Router</div>
                             </div>
                         </SelectItem>
-                        <SelectItem value={'pagesrouter'}>
+                        <SelectItem value={'pages'}>
                             <div className={'flex flex-row items-center justify-start space-x-2'}>
                                 <div
                                     className="w-8 h-8 rounded-md border flex items-center justify-center border-purple-400 bg-purple-100 bg-opacity-10 text-purple-700">
-                                    <svg data-testid="geist-icon" height="16" stroke-linejoin="round"
+                                    <svg data-testid="geist-icon" height="16" strokeLinejoin="round"
                                          viewBox="0 0 16 16" width="16"
                                          style={{width: '16px', height: '16px', color: 'currentcolor'}}>
-                                        <path fill-rule="evenodd" clip-rule="evenodd"
+                                        <path fillRule="evenodd" clipRule="evenodd"
                                               d="M14.5 6.5V13.5C14.5 14.8807 13.3807 16 12 16H4C2.61929 16 1.5 14.8807 1.5 13.5V1.5V0H3H8H9.08579C9.351 0 9.60536 0.105357 9.79289 0.292893L14.2071 4.70711C14.3946 4.89464 14.5 5.149 14.5 5.41421V6.5ZM13 6.5V13.5C13 14.0523 12.5523 14.5 12 14.5H4C3.44772 14.5 3 14.0523 3 13.5V1.5H8V5V6.5H9.5H13ZM9.5 2.12132V5H12.3787L9.5 2.12132Z"
                                               fill="currentColor"></path>
                                     </svg>
@@ -110,7 +86,7 @@ export function SearchForm() {
                                 <div>Pages Router</div>
                             </div>
                         </SelectItem>
-                        <SelectItem value={'aisdk'}>
+                        <SelectItem value={'ai'}>
                             <div className={'flex flex-row items-center justify-start space-x-2'}>
                                 <div>
                                     <TriangleIcon className={'w-8'}/>
