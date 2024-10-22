@@ -3,12 +3,13 @@
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
 import {Button} from '@/components/ui/button'
 import type {Message} from 'ai'
-import {useState} from 'react'
+import {useState, Suspense, useMemo} from 'react'
 import {BookCheckIcon, ChevronsUpDown, ImagesIcon, NewspaperIcon} from 'lucide-react'
 import {Badge} from '@/components/ui/badge'
-import {cn} from '@/lib/utils'
 import {MagnifyingGlassIcon} from '@radix-ui/react-icons'
-import {ImageCard} from '@/components/image-card'
+import {ErrorBoundary} from 'react-error-boundary'
+import {ImageGallery} from '@/components/image-gallery'
+import {ImageGalleryLoading} from '@/components/loading/image-gallery-loading'
 
 export interface ConversationItem {
     question: Message
@@ -19,7 +20,6 @@ export interface QuestionBlockProps {
     item: ConversationItem
 }
 
-// TODO
 const mockMessages = [
     'Hello! How can I assist you today? If you have any questions or need information on a specific topic, feel free to ask!'
 ]
@@ -31,18 +31,20 @@ const mockRelated = [
 ]
 
 const mockImageUrls = [
-    '/next-docs/next-conditional-route.png',
-    '/next-docs/next-intercepting-photo.png',
-    '/next-docs/next-intercepting-routes.png',
-    '/next-docs/next-interception.png',
-    '/next-docs/next-parallel-routes.png',
-    '/next-docs/next-tab-groups.png'
+    {url: '/next-docs/next-conditional-route.png', alt: 'Conditional routes diagram'},
+    {url: '/next-docs/next-intercepting-photo.png', alt: 'Intercepting routes folder structure'},
+    {url: '/next-docs/next-intercepting-routes.png', alt: 'Intercepting routes soft navigation'},
+    {url: '/next-docs/next-interception.png', alt: 'Intercepting routes modal example'},
+    {url: '/next-docs/next-parallel-routes.png', alt: 'Parallel routes diagram'},
+    {url: '/next-docs/next-tab-groups.png', alt: 'Tab groups example'}
 ]
 
 
 export function QuestionBlock({item}: QuestionBlockProps) {
 
     const [isOpen, setIsOpen] = useState<boolean>(true)
+    const imagesPromise = useMemo(() => Promise.resolve(mockImageUrls), [])
+
 
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -59,7 +61,7 @@ export function QuestionBlock({item}: QuestionBlockProps) {
             </CollapsibleTrigger>
             <CollapsibleContent className={'flex flex-col items-start justify-start gap-y-2 pb-1'}>
                 {/*    Section: rewritten query*/}
-                <section id={'query'} className={'pt-2 pb-0'}>
+                <section id={'query'} className={'pt-2 pb-0 w-full'}>
                     <Badge variant={'secondary'} className={'focus:ring-0'}>
                         <MagnifyingGlassIcon className={'size-4'}/>
                         <span className={'ml-1'}>Next.js dynamic route segments (rewritten)</span>
@@ -67,34 +69,32 @@ export function QuestionBlock({item}: QuestionBlockProps) {
                 </section>
 
                 {/* Section: sources*/}
-                <section id={'images'} className={'pt-2 pb-0'}>
+                <section id={'images'} className={'pt-2 pb-0 w-full'}>
                     <h2 className={'flex items-center leading-none py-2'}>
-                        <NewspaperIcon className={'size-6'}/>
+                        <ImagesIcon className={'size-6 mr-2'}/>
                         Images
                     </h2>
                     {/* TODO list - show 3, plus fourth option to click and show 5 - replace, plus new row*/}
-                    <div className={'w-full grid grid-cols-4'}>
-                        {/* TODO wrap in suspense*/}
-                        {mockImageUrls.map((url: string, index: number) => (
-                            <ImageCard url={url} key={index}/>
-                        ))}
-                    </div>
+                    <ErrorBoundary fallback={<></>}>
+                        <Suspense fallback={<ImageGalleryLoading/>}>
+                            <ImageGallery images={imagesPromise} />
+                        </Suspense>
+                    </ErrorBoundary>
                 </section>
 
                 {/* Section: sources*/}
-                <section id={'sources'} className={'pt-2 '}>
+                <section id={'sources'} className={'pt-2 w-full'}>
                     <h2 className={'flex items-center leading-none py-2'}>
-                        <ImagesIcon className={'size-6'}/>
+                        <NewspaperIcon className={'size-6 mr-2'}/>
                         Sources
                     </h2>
-                    {/* TODO list - show 3, plus option to click and expand more*/}
-                    {/* */}
+
                 </section>
 
                 {/* answer*/}
                 <section id={'answer'} className={'pt-2'}>
                     <h2 className={'flex items-center leading-none py-2'}>
-                        <BookCheckIcon className={'size-6'}/>
+                        <BookCheckIcon className={'size-6 mr-2'}/>
                         Answer
                     </h2>
 

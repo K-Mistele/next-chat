@@ -4,6 +4,7 @@ import "./globals.css";
 import {Toaster} from '@/components/ui/sonner'
 import {Header} from '@/components/header'
 import {Footer} from '@/components/footer'
+import {TooltipProvider} from '@/components/ui/tooltip'
 
 const geistSans = localFont({
     src: "../fonts/GeistVF.woff",
@@ -32,7 +33,9 @@ export default function RootLayout({
             className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background`}
         >
         <Header/>
+        <TooltipProvider>
         {children}
+        </TooltipProvider>
         <Footer/>
         <Toaster/>
         </body>
