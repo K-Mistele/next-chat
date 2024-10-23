@@ -42,19 +42,26 @@ export function SourcesListCarousel({sources}: SourcesListProps) {
                                 <div className={'flex flex-grow text-xs min-h-0 overflow-scroll p-2'}>
                                     <EnhancedMarkdown>{source.text}</EnhancedMarkdown>
                                 </div>
-                                <div className={'w-full max-w-full flex flex-row gap-x-2 bg-foreground/10 p-2 items-center'}
-                                     id={'bottom'}>
-                                    {source.icon &&
-                                        <div className={'size-6 relative '}>
-                                            <Image src={source.icon} alt={''} fill={true} className={'aspect-square'}/>
+                                <Link
+                                    href={source.link || '#'}
+                                    target={'_blank'}
+                                    className={'hover:underline cursor-pointer'}
+                                >
+                                    <div id={'bottom'}
+                                        className={'w-full max-w-full flex flex-row gap-x-2 bg-foreground/10 p-2 items-center'}>
+
+                                        {source.icon &&
+                                            <div className={'size-6 relative '}>
+                                                <Image src={source.icon} alt={''} fill={true}
+                                                       className={'aspect-square'}/>
+                                            </div>
+                                        }
+                                        <div className={'text-xs'}>
+                                            {source?.title}
                                         </div>
-                                    }
-                                    <div className={'text-xs '}>
-                                        <Link href={source.link || '#'} target={'_blank'}>
-                                        {source?.title}
-                                    </Link>
                                     </div>
-                                </div>
+                                </Link>
+
                             </div>
                         </CarouselItem>
                     ))}
