@@ -34,6 +34,8 @@ export function ConversationPanel({id, query, existingMessages}: ConversationPan
     return (
         <div>
             <ChatMessages messages={messages} id={id}/>
+
+            {/* TODO Chat window */}
         </div>
     )
 }

@@ -9,6 +9,8 @@ export interface ChatMessagesProps {
 
 export function ChatMessages({messages, id}: ChatMessagesProps) {
 
+    // Group the messages in the conversation into a question and an answer, used for rendering
+    //  blocks of the question and it's answer, sources, images, etc
     const conversationItems: Array<ConversationItem> = useMemo(() => {
         const groupedMessages: Array<ConversationItem> = [];
 
@@ -26,7 +28,7 @@ export function ChatMessages({messages, id}: ChatMessagesProps) {
     }, [messages])
 
     return (
-        <div className={'px-8 sm:px-12 pb-14 md:pb-24 mx-auto flex flex-col space-y-3 md:space-y-4'}>
+        <div className={'px-8 sm:px-12 pb-14 md:pb-24 mx-auto flex flex-col space-y-3 md:space-y-4 w-full'}>
             {conversationItems.map((item: ConversationItem, idx: number) => (
                 <QuestionBlock item={item} key={idx}/>
             ))}

@@ -9,6 +9,7 @@ export interface ImageInfo {
     url: string,
     alt: string
 }
+
 export interface ImageGalleryProps {
     images: Promise<Array<ImageInfo>>
 }
@@ -21,32 +22,41 @@ export function ImageGallery({images}: ImageGalleryProps) {
     const selectedImages = useMemo(() => {
 
         return showMoreImages
-             ? imageData
+            ? imageData
             : imageData.slice(0, 3)
-    }, [images, showMoreImages])
+    }, [imageData, showMoreImages])
 
     return (
 
-        <div className={'w-full grid grid-cols-2 xl:grid-cols-4 gap-2'}>
+        <div className={'w-full grid grid-cols-2 gap-4'}>
             {selectedImages.map((selectedImage: ImageInfo, index: number) => (
                 // TODO make clickable
-                <div className={'w-full aspect-square relative rounded bg-muted-foreground'} key={index}>
-                    <Tooltip>
+                <Tooltip key={index}>
+
+                    <div className={cn(
+                        'w-full aspect-square relative overflow-clip border-2 border-foreground/20 rounded-xl',
+                        'shadow-md transition-all duration-200 ease-in-out hover:scale-[1.02] hover:shadow-lg'
+                    )} key={index}>
                         <TooltipTrigger>
-                            <Image src={selectedImage.url} alt={selectedImage.url} fill={true} className={'object-cover'}/>
+                            <Image src={selectedImage.url} alt={selectedImage.url} fill={true}
+                                   className={'object-cover'}/>
                         </TooltipTrigger>
-                        <TooltipContent>
-                            {selectedImage.alt}&nbsp;(Click for full image)
-                        </TooltipContent>
-                    </Tooltip>
-                </div>
+
+                    </div>
+                    <TooltipContent>
+                        {selectedImage.alt}&nbsp;(Click for full image)
+                    </TooltipContent>
+                </Tooltip>
+
             ))}
             {!showMoreImages &&
-                <div onClick={() => setShowMoreImages((s) => !s) }
-                    className={cn(
-                        'w-full aspect-square relative rounded bg-muted-foreground/10 flex flex-col items-center',
-                        'justify-center text-center p-4 hover:underline cursor-pointer'
-                    )}>
+                <div onClick={() => setShowMoreImages((s) => !s)}
+                     className={cn(
+                         'w-full aspect-square relative rounded bg-muted-foreground/10 flex flex-col items-center',
+                         'justify-center text-center p-4 hover:underline cursor-pointer border-2 border-foreground/20 ',
+                         'rounded-xl',
+                         'shadow-md transition-all duration-200 ease-in-out hover:scale-[1.02] hover:shadow-lg'
+                     )}>
                     Click here to show {imageData.length - selectedImages.length} more images
                 </div>
             }
