@@ -1,9 +1,11 @@
 import {type CoreMessage, streamText, StreamData} from 'ai'
 import {openai} from '@ai-sdk/openai'
+import {systemPrompt} from '@/lib/ai/system-prompt'
 
 export async function POST(request: Request) {
 
-    const {messages}: {messages: CoreMessage[]} = await request.json()
+    const {messages}: { messages: CoreMessage[] } = await request.json()
+
 
     const data = new StreamData()
     // call data.append({...}) to add data to the stream
@@ -11,7 +13,10 @@ export async function POST(request: Request) {
     const result = await streamText({
         model: openai('gpt-4o-mini'),
         system: 'You are a helpful assistant',
-        messages,
+        messages: [
+            {role: `system`, content: systemPrompt},
+            ...messages
+        ],
         onFinish: () => {
             data.close()
         }

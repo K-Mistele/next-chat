@@ -12,6 +12,7 @@ import {ImageGallery} from '@/components/image-gallery'
 import {ImageGalleryLoading} from '@/components/loading/image-gallery-loading'
 import {Source, SourcesListCarousel} from '@/components/sources-list'
 import {SourcesListLoading} from '@/components/loading/sources-list-loading'
+import {EnhancedMarkdown} from '@/components/enhanced-markdown'
 
 export interface ConversationItem {
     question: Message
@@ -135,6 +136,7 @@ export function QuestionBlock({item}: QuestionBlockProps) {
                             </h2>
 
                             {/* TODO react markdown rendering*/}
+                            <EnhancedMarkdown>{item.answer?.content}</EnhancedMarkdown>
                         </section>
                     </div>
                     <div className={'order-first lg:order-last col-span-4 flex flex-col'}>
