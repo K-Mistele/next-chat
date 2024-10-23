@@ -1,7 +1,10 @@
-import {Header} from '@/components/header'
 import {Search} from '@/components/search'
-import {Footer} from '@/components/footer'
+import {Metadata} from 'next'
 
+export const metadata: Metadata = {
+    title: 'Chat with Next.js Docs',
+    description: 'Use AI to chat with the Next.js docs for app router, pages router, and Vercel AI SDK.'
+}
 export default async function Home() {
 
     return (

@@ -10,7 +10,8 @@ import {MagnifyingGlassIcon} from '@radix-ui/react-icons'
 import {ErrorBoundary} from 'react-error-boundary'
 import {ImageGallery} from '@/components/image-gallery'
 import {ImageGalleryLoading} from '@/components/loading/image-gallery-loading'
-import {Source} from '@/components/sources-list'
+import {Source, SourcesListCarousel} from '@/components/sources-list'
+import {SourcesListLoading} from '@/components/loading/sources-list-loading'
 
 export interface ConversationItem {
     question: Message
@@ -110,7 +111,7 @@ export function QuestionBlock({item}: QuestionBlockProps) {
                     </Badge>
                 </section>
 
-                <div className={'w-full grid grid-cols-12 gap-xl'}>
+                <div className={'w-full flex flex-col lg:grid grid-cols-12 gap-8'}>
                     <div className={'col-span-8 flex flex-col gap-y-2 pb-1'}>
                         {/* Section: sources*/}
                         <section id={'sources'} className={'pt-2 w-full'}>
@@ -118,6 +119,11 @@ export function QuestionBlock({item}: QuestionBlockProps) {
                                 <NewspaperIcon className={'size-6 mr-2'}/>
                                 Sources
                             </h2>
+                            <ErrorBoundary fallback={<SourcesListLoading/>}>
+                                <Suspense fallback={<SourcesListLoading/>}>
+                                    <SourcesListCarousel sources={sourcesMockPromise}/>
+                                </Suspense>
+                            </ErrorBoundary>
 
                         </section>
 
@@ -131,7 +137,7 @@ export function QuestionBlock({item}: QuestionBlockProps) {
                             {/* TODO react markdown rendering*/}
                         </section>
                     </div>
-                    <div className={'col-span-4 flex flex-col'}>
+                    <div className={'order-first lg:order-last col-span-4 flex flex-col'}>
                         {/* Section: images*/}
                         <section id={'images'} className={'pt-2 pb-0 w-full'}>
 
@@ -140,11 +146,10 @@ export function QuestionBlock({item}: QuestionBlockProps) {
                                     <ImagesIcon className={'size-6 mr-2'}/>
                                     Images
                                 </h2>
-
                             </div>
 
                             {/* TODO list - show 3, plus fourth option to click and show 5 - replace, plus new row*/}
-                            <ErrorBoundary fallback={<></>}>
+                            <ErrorBoundary fallback={<ImageGalleryLoading/>}>
                                 <Suspense fallback={<ImageGalleryLoading/>}>
                                     <ImageGallery images={imagesMockPromise}/>
                                 </Suspense>

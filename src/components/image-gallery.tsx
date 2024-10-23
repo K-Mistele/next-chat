@@ -54,10 +54,10 @@ export function ImageGallery({images}: ImageGalleryProps) {
                      className={cn(
                          'w-full aspect-square relative rounded bg-muted-foreground/10 flex flex-col items-center',
                          'justify-center text-center p-4 hover:underline cursor-pointer border-2 border-foreground/20 ',
-                         'rounded-xl',
+                         'rounded-xl text-md lg:text-sm',
                          'shadow-md transition-all duration-200 ease-in-out hover:scale-[1.02] hover:shadow-lg'
                      )}>
-                    Click here to show {imageData.length - selectedImages.length} more images
+                    Click to show {imageData.length - selectedImages.length} more
                 </div>
             }
         </div>

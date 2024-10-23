@@ -2,8 +2,9 @@ import {redirect} from 'next/navigation'
 import {ConversationPanel} from '@/components/conversation-panel'
 import {generateId, type Message} from 'ai'
 import {type PageProps} from '@/lib/types'
+import {Metadata} from 'next'
 
-export async function generateMetadata({searchParams}: PageProps) {
+export async function generateMetadata({searchParams}: PageProps): Promise<Metadata> {
     const {query} = await searchParams
     if (!query) return {
         title: 'Chat with Next.js docs'
@@ -26,7 +27,7 @@ export default async function SearchPage({searchParams}: PageProps) {
     return (
         // Container
         <div>
-            <div className={'px-8 sm:px-12 pb-14 md:pb-24 max-w-[80%] mx-auto flex flex-col space-y-3 md:space-y-4'}>
+            <div className={'px-8 sm:px-12 pb-14 md:pb-24 max-w-[80%] mx-auto flex flex-col space-y-3 md:space-y-4 max-h-screen overflow-scroll scrollbar-hide'}>
 
                 {/* TODO streaming suspense*/}
                 <ConversationPanel id={id} query={queryParams.query as string} existingMessages={existingMessages}/>
