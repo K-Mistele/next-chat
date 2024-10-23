@@ -11,7 +11,6 @@ export interface ImageInfo {
 }
 export interface ImageGalleryProps {
     images: Promise<Array<ImageInfo>>
-    expand: boolean
 }
 
 export function ImageGallery({images}: ImageGalleryProps) {
@@ -45,7 +44,7 @@ export function ImageGallery({images}: ImageGalleryProps) {
             {!showMoreImages &&
                 <div onClick={() => setShowMoreImages((s) => !s) }
                     className={cn(
-                        'w-full aspect-square relative rounded bg-muted-foreground/30 flex flex-col items-center',
+                        'w-full aspect-square relative rounded bg-muted-foreground/10 flex flex-col items-center',
                         'justify-center text-center p-4 hover:underline cursor-pointer'
                     )}>
                     Click here to show {imageData.length - selectedImages.length} more images
