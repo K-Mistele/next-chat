@@ -4,7 +4,7 @@ import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/
 import {Button} from '@/components/ui/button'
 import type {Message} from 'ai'
 import {useState, Suspense, useMemo} from 'react'
-import {BookCheckIcon, ChevronsUpDown, ImagesIcon, NewspaperIcon} from 'lucide-react'
+import {BookCheckIcon, ChevronsUpDown, ChevronsUpDownIcon, ImagesIcon, NewspaperIcon} from 'lucide-react'
 import {Badge} from '@/components/ui/badge'
 import {MagnifyingGlassIcon} from '@radix-ui/react-icons'
 import {ErrorBoundary} from 'react-error-boundary'
@@ -85,6 +85,7 @@ const mockSources: Array<Source> = [
 export function QuestionBlock({item}: QuestionBlockProps) {
 
     const [isOpen, setIsOpen] = useState<boolean>(true)
+    const [sourcesIsOpen, setSourcesIsOpen] = useState<boolean>(true)
     const imagesMockPromise = useMemo(() => Promise.resolve(mockImageUrls), [])
     const sourcesMockPromise = useMemo(() => Promise.resolve(mockSources), [])
 
@@ -116,16 +117,28 @@ export function QuestionBlock({item}: QuestionBlockProps) {
                     <div className={'col-span-8 flex flex-col gap-y-2 pb-1'}>
                         {/* Section: sources*/}
                         <section id={'sources'} className={'pt-2 w-full'}>
-                            <h2 className={'flex items-center leading-none py-2'}>
-                                <NewspaperIcon className={'size-6 mr-2'}/>
-                                Sources
-                            </h2>
-                            <ErrorBoundary fallback={<SourcesListLoading/>}>
-                                <Suspense fallback={<SourcesListLoading/>}>
-                                    <SourcesListCarousel sources={sourcesMockPromise}/>
-                                </Suspense>
-                            </ErrorBoundary>
+                            <Collapsible open={sourcesIsOpen} onOpenChange={setSourcesIsOpen}>
+                                <div className={'flex flex-row w-full items-center justify-between'}>
+                                    <h2 className={'flex items-center leading-none py-2'}>
+                                        <NewspaperIcon className={'size-6 mr-2'}/>
+                                        Sources
+                                    </h2>
+                                    <CollapsibleTrigger className={'flex flex-row justify-between'} asChild>
 
+                                        <Button className={''} variant={'ghost'} size={'sm'}>
+                                            <ChevronsUpDownIcon className={'size-4'}/>
+                                        </Button>
+                                    </CollapsibleTrigger>
+                                </div>
+
+                                <CollapsibleContent>
+                                    <ErrorBoundary fallback={<SourcesListLoading/>}>
+                                        <Suspense fallback={<SourcesListLoading/>}>
+                                            <SourcesListCarousel sources={sourcesMockPromise}/>
+                                        </Suspense>
+                                    </ErrorBoundary>
+                                </CollapsibleContent>
+                            </Collapsible>
                         </section>
 
                         {/* answer*/}
