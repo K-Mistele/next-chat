@@ -13,6 +13,7 @@ import {ImageGalleryLoading} from '@/components/loading/image-gallery-loading'
 import {Source, SourcesListCarousel} from '@/components/sources-list'
 import {SourcesListLoading} from '@/components/loading/sources-list-loading'
 import {EnhancedMarkdown} from '@/components/enhanced-markdown'
+import {Separator} from '@/components/ui/separator'
 
 export interface ConversationItem {
     question: Message
@@ -119,7 +120,7 @@ export function QuestionBlock({item}: QuestionBlockProps) {
                         <section id={'sources'} className={'pt-2 w-full'}>
                             <Collapsible open={sourcesIsOpen} onOpenChange={setSourcesIsOpen}>
                                 <div className={'flex flex-row w-full items-center justify-between'}>
-                                    <h2 className={'flex items-center leading-none py-2'}>
+                                    <h2 className={'flex items-center leading-none pt-2 pb-4'}>
                                         <NewspaperIcon className={'size-6 mr-2'}/>
                                         Sources
                                     </h2>
@@ -143,13 +144,19 @@ export function QuestionBlock({item}: QuestionBlockProps) {
 
                         {/* answer*/}
                         <section id={'answer'} className={'pt-2'}>
-                            <h2 className={'flex items-center leading-none py-2'}>
+                            <h2 className={'flex items-center leading-none pt-2 pb-4'}>
                                 <BookCheckIcon className={'size-6 mr-2'}/>
                                 Answer
                             </h2>
+                            {/*<Separator className={'mt-2 mb-4'}/>*/}
 
-                            {/* TODO react markdown rendering*/}
-                            <EnhancedMarkdown>{item.answer?.content}</EnhancedMarkdown>
+                            {/* Load the content OR a loading state*/}
+                            {
+                                item.answer?.content.length
+                                ? <EnhancedMarkdown>{item.answer?.content}</EnhancedMarkdown>
+                                : <></>
+                            }
+
                         </section>
                     </div>
                     <div className={'order-first lg:order-last col-span-4 flex flex-col'}>
@@ -157,7 +164,7 @@ export function QuestionBlock({item}: QuestionBlockProps) {
                         <section id={'images'} className={'pt-2 pb-0 w-full'}>
 
                             <div className={'flex flex-row justify-between items-center'}>
-                                <h2 className={'flex items-center leading-none py-2'}>
+                                <h2 className={'flex items-center leading-none pt-2 pb-4'}>
                                     <ImagesIcon className={'size-6 mr-2'}/>
                                     Images
                                 </h2>

@@ -12,7 +12,7 @@ export function InlineCode({className, children, ...props}: InlineCodeProps){
     return <code
         className={cn(
             className,
-            'px-2 py-1 h-fit font-mono font-normal inline-block whitespace-nowrap text-default-foreground text-sm rounded-md'
+            'px-1 py-0.5 h-fit font-mono font-normal inline-block whitespace-nowrap text-default-foreground text-inherit'
         )}
         style={{backgroundColor: 'rgba(63, 63, 70, 0.4)', ...sourceCodeFont.style}}>
         {children}
