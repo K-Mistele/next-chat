@@ -43,6 +43,7 @@ const mockImageUrls = [
 export function QuestionBlock({item}: QuestionBlockProps) {
 
     const [isOpen, setIsOpen] = useState<boolean>(true)
+    const [imagesOpen, setImagesOpen] = useState<boolean>(true)
     const imagesPromise = useMemo(() => Promise.resolve(mockImageUrls), [])
 
 
@@ -70,16 +71,30 @@ export function QuestionBlock({item}: QuestionBlockProps) {
 
                 {/* Section: sources*/}
                 <section id={'images'} className={'pt-2 pb-0 w-full'}>
-                    <h2 className={'flex items-center leading-none py-2'}>
-                        <ImagesIcon className={'size-6 mr-2'}/>
-                        Images
-                    </h2>
-                    {/* TODO list - show 3, plus fourth option to click and show 5 - replace, plus new row*/}
-                    <ErrorBoundary fallback={<></>}>
-                        <Suspense fallback={<ImageGalleryLoading/>}>
-                            <ImageGallery images={imagesPromise} />
-                        </Suspense>
-                    </ErrorBoundary>
+                    <Collapsible open={imagesOpen} onOpenChange={setImagesOpen}>
+                        <CollapsibleTrigger asChild>
+                            <div className={'flex flex-row justify-between items-center'}>
+                                <h2 className={'flex items-center leading-none py-2'}>
+                                    <ImagesIcon className={'size-6 mr-2'}/>
+                                    Images
+                                </h2>
+                                <Button variant="ghost" size="sm" className="">
+                                    <ChevronsUpDown className="h-4 w-4"/>
+                                </Button>
+                            </div>
+
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            {/* TODO list - show 3, plus fourth option to click and show 5 - replace, plus new row*/}
+                            <ErrorBoundary fallback={<></>}>
+                                <Suspense fallback={<ImageGalleryLoading/>}>
+                                    <ImageGallery images={imagesPromise} />
+                                </Suspense>
+                            </ErrorBoundary>
+                        </CollapsibleContent>
+                    </Collapsible>
+
+
                 </section>
 
                 {/* Section: sources*/}
