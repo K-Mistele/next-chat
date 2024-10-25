@@ -1,5 +1,5 @@
 {
-  "id": "1bfda439-c491-4793-9652-91e97faf0bf9",
+  "id": "50d41d91-a22e-42b1-b95d-35cc19ef7a09",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -96,11 +96,29 @@
           "name": "name",
           "type": "text",
           "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true
         },
         "contents": {
           "name": "contents",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tags": {
+          "name": "tags",
+          "type": "text[]",
           "primaryKey": false,
           "notNull": false
         }
@@ -109,11 +127,11 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "documents_name_unique": {
-          "name": "documents_name_unique",
+        "documents_path_unique": {
+          "name": "documents_path_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "name"
+            "path"
           ]
         }
       },

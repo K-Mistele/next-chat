@@ -9,9 +9,12 @@ CREATE TABLE IF NOT EXISTS "chunks" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "documents" (
 	"id" uuid PRIMARY KEY NOT NULL,
-	"name" text NOT NULL,
+	"name" text,
+	"description" text,
+	"path" text NOT NULL,
 	"contents" text,
-	CONSTRAINT "documents_name_unique" UNIQUE("name")
+	"tags" text[],
+	CONSTRAINT "documents_path_unique" UNIQUE("path")
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "images" (

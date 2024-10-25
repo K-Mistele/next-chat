@@ -11,8 +11,11 @@ import {
 // Store the WHOLE documents - they are small, so should not be a big deal
 export const documents = pgTable('documents', {
     id: uuid('id').primaryKey().$defaultFn(() => randomUUID()),
-    name: text('name').unique().notNull(),
+    title: text('name'),
+    description: text('description'),
+    path: text('path').unique().notNull(),
     contents: text('contents'),
+    tags: text('tags').array(),
 });
 
 
@@ -41,3 +44,12 @@ export const images = pgTable('images', {
         embeddingIndex: index('images_embedding_index').using('hnsw', table.embedding.op('vector_cosine_ops'))
     })
 )
+
+export type Image = typeof images.$inferSelect
+export type NewImage = typeof images.$inferInsert
+
+export type Chunk = typeof chunks.$inferSelect
+export type NewChunk = typeof chunks.$inferInsert
+
+export type Document = typeof documents.$inferSelect
+export type NewDocument = typeof documents.$inferInsert

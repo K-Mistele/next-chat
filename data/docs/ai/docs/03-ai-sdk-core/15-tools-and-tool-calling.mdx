@@ -1,0 +1,368 @@
+---
+title: Tool Calling
+description: Learn about tool calling with AI SDK Core.
+---
+
+# Tool Calling
+
+As covered under Foundations, [tools](/docs/foundations/tools) are objects that can be called by the model to perform a specific task.
+AI SDK Core tools contain three elements:
+
+- **`description`**: An optional description of the tool that can influence when the tool is picked.
+- **`parameters`**: A [Zod schema](/docs/foundations/tools#schemas) or a [JSON schema](/docs/reference/ai-sdk-core/json-schema) that defines the parameters. The schema is consumed by the LLM, and also used to validate the LLM tool calls.
+- **`execute`**: An optional async function that is called with the arguments from the tool call. It produces a value of type `RESULT` (generic type). It is optional because you might want to forward tool calls to the client or to a queue instead of executing them in the same process.
+
+<Note className="mb-2">
+  You can use the [`tool`](/docs/reference/ai-sdk-core/tool) helper function to
+  infer the types of the `execute` parameters.
+</Note>
+
+The `tools` parameter of `generateText` and `streamText` is an object that has the tool names as keys and the tools as values:
+
+```ts highlight="6-17"
+import { z } from 'zod';
+import { generateText, tool } from 'ai';
+
+const result = await generateText({
+  model: yourModel,
+  tools: {
+    weather: tool({
+      description: 'Get the weather in a location',
+      parameters: z.object({
+        location: z.string().describe('The location to get the weather for'),
+      }),
+      execute: async ({ location }) => ({
+        location,
+        temperature: 72 + Math.floor(Math.random() * 21) - 10,
+      }),
+    }),
+  },
+  prompt: 'What is the weather in San Francisco?',
+});
+```
+
+<Note>
+  When a model uses a tool, it is called a "tool call" and the output of the
+  tool is called a "tool result".
+</Note>
+
+Tool calling is not restricted to only text generation.
+You can also use it to render user interfaces (Generative UI).
+
+## Multi-Step Calls
+
+Large language models need to know the tool results before they can continue to generate text.
+This requires sending the tool results back to the model.
+You can enable this feature by setting the `maxSteps` setting to a number greater than 1.
+
+When `maxSteps` is set to a number greater than 1, the language model will be called
+in a loop when there are tool calls and for every tool call there is a tool result, until there
+are no further tool calls or the maximum number of tool steps is reached.
+
+### Example
+
+In the following example, there are two steps:
+
+1. **Step 1**
+   1. The prompt `'What is the weather in San Francisco?'` is sent to the model.
+   1. The model generates a tool call.
+   1. The tool call is executed.
+1. **Step 2**
+   1. The tool result is sent to the model.
+   1. The model generates a response considering the tool result.
+
+```ts highlight="18"
+import { z } from 'zod';
+import { generateText, tool } from 'ai';
+
+const { text, steps } = await generateText({
+  model: yourModel,
+  tools: {
+    weather: tool({
+      description: 'Get the weather in a location',
+      parameters: z.object({
+        location: z.string().describe('The location to get the weather for'),
+      }),
+      execute: async ({ location }) => ({
+        location,
+        temperature: 72 + Math.floor(Math.random() * 21) - 10,
+      }),
+    }),
+  },
+  maxSteps: 5, // allow up to 5 steps
+  prompt: 'What is the weather in San Francisco?',
+});
+```
+
+<Note>You can use `streamText` in a similar way.</Note>
+
+### Steps
+
+To access intermediate tool calls and results, you can use the `steps` property in the result object
+or the `streamText` `onFinish` callback.
+It contains all the text, tool calls, tool results, and more from each step.
+
+#### Example: Extract tool results from all steps
+
+```ts highlight="3,9-10"
+import { generateText } from 'ai';
+
+const { steps } = await generateText({
+  model: openai('gpt-4-turbo'),
+  maxSteps: 10,
+  // ...
+});
+
+// extract all tool calls from the steps:
+const allToolCalls = steps.flatMap(step => step.toolCalls);
+```
+
+### `onStepFinish` callback
+
+When using `generateText` or `streamText`, you can provide an `onStepFinish` callback that
+is triggered when a step is finished,
+i.e. all text deltas, tool calls, and tool results for the step are available.
+When you have multiple steps, the callback is triggered for each step.
+
+```tsx highlight="5-7"
+import { generateText } from 'ai';
+
+const result = await generateText({
+  // ...
+  onStepFinish({ text, toolCalls, toolResults, finishReason, usage }) {
+    // your own logic, e.g. for saving the chat history or recording usage
+  },
+});
+```
+
+## Response Messages
+
+Adding the generated assistant and tool messages to your conversation history is a common task,
+especially if you are using multi-step tool calls.
+
+Both `generateText` and `streamText` have a `responseMessages` property that you can use to
+add the assistant and tool messages to your conversation history.
+It is also available in the `onFinish` callback of `streamText`.
+
+The `responseMessages` property contains an array of `CoreMessage` objects that you can add to your conversation history:
+
+```ts
+import { generateText } from 'ai';
+
+const messages: CoreMessage[] = [
+  // ...
+];
+
+const { responseMessages } = await generateText({
+  // ...
+  messages,
+});
+
+// add the response messages to your conversation history:
+messages.push(...responseMessages); // streamText: ...(await responseMessages)
+```
+
+## Tool Choice
+
+You can use the `toolChoice` setting to influence when a tool is selected.
+It supports the following settings:
+
+- `auto` (default): the model can choose whether and which tools to call.
+- `required`: the model must call a tool. It can choose which tool to call.
+- `none`: the model must not call tools
+- `{ type: 'tool', toolName: string (typed) }`: the model must call the specified tool
+
+```ts highlight="18"
+import { z } from 'zod';
+import { generateText, tool } from 'ai';
+
+const result = await generateText({
+  model: yourModel,
+  tools: {
+    weather: tool({
+      description: 'Get the weather in a location',
+      parameters: z.object({
+        location: z.string().describe('The location to get the weather for'),
+      }),
+      execute: async ({ location }) => ({
+        location,
+        temperature: 72 + Math.floor(Math.random() * 21) - 10,
+      }),
+    }),
+  },
+  toolChoice: 'required', // force the model to call a tool
+  prompt: 'What is the weather in San Francisco?',
+});
+```
+
+## Abort Signals
+
+The abort signals from `generateText` and `streamText` are forwarded to the tool execution.
+You can access them in the second parameter of the `execute` function and e.g. abort long-running computations or forward them to fetch calls inside tools.
+
+```ts highlight="6,11,14"
+import { z } from 'zod';
+import { generateText, tool } from 'ai';
+
+const result = await generateText({
+  model: yourModel,
+  abortSignal: myAbortSignal, // signal that will be forwarded to tools
+  tools: {
+    weather: tool({
+      description: 'Get the weather in a location',
+      parameters: z.object({ location: z.string() }),
+      execute: async ({ location }, { abortSignal }) => {
+        return fetch(
+          `https://api.weatherapi.com/v1/current.json?q=${location}`,
+          { signal: abortSignal }, // forward the abort signal to fetch
+        );
+      },
+    }),
+  },
+  prompt: 'What is the weather in San Francisco?',
+});
+```
+
+## Types
+
+Modularizing your code often requires defining types to ensure type safety and reusability.
+To enable this, the AI SDK provides several helper types for tools, tool calls, and tool results.
+
+You can use them to strongly type your variables, function parameters, and return types
+in parts of the code that are not directly related to `steamText` or `generateText`.
+
+Each tool call is typed with `CoreToolCall<NAME extends string, ARGS>`, depending
+on the tool that has been invoked.
+Similarly, the tool results are typed with `CoreToolResult<NAME extends string, ARGS, RESULT>`.
+
+The tools in `streamText` and `generateText` are defined as a `Record<string, CoreTool>`.
+The type inference helpers `CoreToolCallUnion<TOOLS extends Record<string, CoreTool>>`
+and `CoreToolResultUnion<TOOLS extends Record<string, CoreTool>>` can be used to
+extract the tool call and tool result types from the tools.
+
+```ts highlight="18-19,23-24"
+import { openai } from '@ai-sdk/openai';
+import { CoreToolCallUnion, CoreToolResultUnion, generateText, tool } from 'ai';
+import { z } from 'zod';
+
+const myToolSet = {
+  firstTool: tool({
+    description: 'Greets the user',
+    parameters: z.object({ name: z.string() }),
+    execute: async ({ name }) => `Hello, ${name}!`,
+  }),
+  secondTool: tool({
+    description: 'Tells the user their age',
+    parameters: z.object({ age: z.number() }),
+    execute: async ({ age }) => `You are ${age} years old!`,
+  }),
+};
+
+type MyToolCall = CoreToolCallUnion<typeof myToolSet>;
+type MyToolResult = CoreToolResultUnion<typeof myToolSet>;
+
+async function generateSomething(prompt: string): Promise<{
+  text: string;
+  toolCalls: Array<MyToolCall>; // typed tool calls
+  toolResults: Array<MyToolResult>; // typed tool results
+}> {
+  return generateText({
+    model: openai('gpt-4o'),
+    tools: myToolSet,
+    prompt,
+  });
+}
+```
+
+## Active Tools
+
+<Note type="warning">
+  The `activeTools` property is experimental and may change in the future.
+</Note>
+
+Language models can only handle a limited number of tools at a time, depending on the model.
+To allow for static typing using a large number of tools and limiting the available tools to the model at the same time,
+the AI SDK provides the `experimental_activeTools` property.
+
+It is an array of tool names that are currently active.
+By default, the value is `undefined` and all tools are active.
+
+```ts highlight="7"
+import { openai } from '@ai-sdk/openai';
+import { generateText } from 'ai';
+
+const { text } = await generateText({
+  model: openai('gpt-4o'),
+  tools: myToolSet,
+  experimental_activeTools: ['firstTool'],
+});
+```
+
+## Multi-modal Tool Results
+
+<Note type="warning">
+  Multi-modal tool results are experimental and only supported by Anthropic.
+</Note>
+
+In order to send multi-modal tool results, e.g. screenshots, back to the model,
+they need to be converted into a specific format.
+
+AI SDK Core tools have an optional `experimental_toToolResultContent` function
+that converts the tool result into a content part.
+
+Here is an example for converting a screenshot into a content part:
+
+```ts highlight="22-27"
+const result = await generateText({
+  model: anthropic('claude-3-5-sonnet-20241022'),
+  tools: {
+    computer: anthropic.tools.computer_20241022({
+      // ...
+      async execute({ action, coordinate, text }) {
+        switch (action) {
+          case 'screenshot': {
+            return {
+              type: 'image',
+              data: fs
+                .readFileSync('./data/screenshot-editor.png')
+                .toString('base64'),
+            };
+          }
+          default: {
+            return `executed ${action}`;
+          }
+        }
+      },
+
+      // map to tool result content for LLM consumption:
+      experimental_toToolResultContent(result) {
+        return typeof result === 'string'
+          ? [{ type: 'text', text: result }]
+          : [{ type: 'image', data: result.data, mimeType: 'image/png' }];
+      },
+    }),
+  },
+  // ...
+});
+```
+
+## Examples
+
+You can see tools in action using various frameworks in the following examples:
+
+<ExampleLinks
+  examples={[
+    {
+      title: 'Learn to use tools in Node.js',
+      link: '/examples/node/tools/call-tool',
+    },
+    {
+      title: 'Learn to use tools in Next.js with Route Handlers (AI SDK UI)',
+      link: '/examples/next-pages/tools/call-tool',
+    },
+    {
+      title: 'Learn to use tools in Next.js with Server Actions (AI SDK RSC)',
+      link: '/examples/next-app/tools/call-tool',
+    },
+  ]}
+/>
