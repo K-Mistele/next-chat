@@ -108,25 +108,44 @@ async function loadDocuments(paths: Array<string>): Promise<Array<NewDocument>> 
 interface ImageData {
     url: string
     alt: string
-    documentPath: string
 }
+const imageTagRegex = /<Image\s*([^>]*?)\/>/g;
+const altTextRegex = /alt=["']?([^"']+)["']?/;
+
 
 /**
  * Extract the image tags from a document
- * @param mdxContent - the document text
+ * @param document - the document
  */
-function extractImageTags(mdxContent: string): Array<ImageData> {
-    const imageTags: Array<ImageData> = []
+function extractImageTags(document: NewDocument): Array<ImageData> {
+    const images: Array<ImageData> = [];
     const imageTagRegex = /<Image\s*([^>]*?)\/>/g;
+    const attributesRegex = /\b(srcDark|alt)=["']?([^"']+)["']?/g;
+
+    if (!document.contents) return []
 
     let match;
-    while ((match = imageTagRegex.exec(mdxContent)) !== null) {
-        // TODO Extract the information we need
-        console.log(`Found image tag:`, match[0])
-        //imageTags.push(match[0]); // Add the full match to the array
+    while ((match = imageTagRegex.exec(document.contents!)) !== null) {
+        const attributesString = match[1];
+        const attributes = { srcDark: null, alt: null };
+
+        let attrMatch;
+        while ((attrMatch = attributesRegex.exec(attributesString)) !== null) {
+            const attributeName = attrMatch[1]; // "src" or "alt"
+            const attributeValue = attrMatch[2]; // value corresponding to the attribute
+            // @ts-expect-error - it works
+            attributes[attributeName] = attributeValue; // Store the value in the correct property
+        }
+        if (attributes.srcDark && attributes.alt) {
+            images.push({
+                url: attributes.srcDark,
+                alt: attributes.alt,
+            })
+        }
     }
 
-    return imageTags;
+
+    return images;
 }
 
 /**
@@ -137,9 +156,14 @@ async function extractAndEmbedImages(documents: Array<NewDocument>): Promise<Arr
 
     const newImages: Array<NewImage> = []
 
-    const imageTags = documents.map(doc => extractImageTags(doc.contents))
+    // Build a map of the document path to the array of images in it
+    const imageTagsForDocuments: Record<string, Array<ImageData>> = {}
+    for (const document of documents) {
+        imageTagsForDocuments[document.path] = extractImageTags(document)
+    }
 
-
+    // TODO update the full URL. embed the alt text NOT the image since the images will not embed well, and we have
+    //  high-quality alt text thanks to vercel
 
 
     return newImages
