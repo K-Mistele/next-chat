@@ -1,5 +1,5 @@
 {
-  "id": "50d41d91-a22e-42b1-b95d-35cc19ef7a09",
+  "id": "76ce7864-87a1-41e8-a8ac-e16c15b4e326",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -32,9 +32,9 @@
           "primaryKey": false,
           "notNull": false
         },
-        "document_id": {
-          "name": "document_id",
-          "type": "uuid",
+        "document_path": {
+          "name": "document_path",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -64,15 +64,15 @@
         }
       },
       "foreignKeys": {
-        "chunks_document_id_documents_id_fk": {
-          "name": "chunks_document_id_documents_id_fk",
+        "chunks_document_path_documents_path_fk": {
+          "name": "chunks_document_path_documents_path_fk",
           "tableFrom": "chunks",
           "tableTo": "documents",
           "columnsFrom": [
-            "document_id"
+            "document_path"
           ],
           "columnsTo": [
-            "id"
+            "path"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -86,12 +86,6 @@
       "name": "documents",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
         "name": {
           "name": "name",
           "type": "text",
@@ -107,7 +101,7 @@
         "path": {
           "name": "path",
           "type": "text",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true
         },
         "contents": {
@@ -126,15 +120,7 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "documents_path_unique": {
-          "name": "documents_path_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "path"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "checkConstraints": {}
     },
     "public.images": {
@@ -159,17 +145,11 @@
           "primaryKey": false,
           "notNull": true
         },
-        "document_id": {
-          "name": "document_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "chunk_id": {
-          "name": "chunk_id",
+        "document_path": {
+          "name": "document_path",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         }
       },
       "indexes": {
@@ -191,28 +171,15 @@
         }
       },
       "foreignKeys": {
-        "images_document_id_documents_id_fk": {
-          "name": "images_document_id_documents_id_fk",
+        "images_document_path_documents_path_fk": {
+          "name": "images_document_path_documents_path_fk",
           "tableFrom": "images",
           "tableTo": "documents",
           "columnsFrom": [
-            "document_id"
+            "document_path"
           ],
           "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "images_chunk_id_chunks_id_fk": {
-          "name": "images_chunk_id_chunks_id_fk",
-          "tableFrom": "images",
-          "tableTo": "chunks",
-          "columnsFrom": [
-            "chunk_id"
-          ],
-          "columnsTo": [
-            "id"
+            "path"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"

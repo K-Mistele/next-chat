@@ -10,10 +10,9 @@ import {
 
 // Store the WHOLE documents - they are small, so should not be a big deal
 export const documents = pgTable('documents', {
-    id: uuid('id').primaryKey().$defaultFn(() => randomUUID()),
     title: text('name'),
     description: text('description'),
-    path: text('path').unique().notNull(),
+    path: text('path').primaryKey(),
     contents: text('contents'),
     tags: text('tags').array(),
 });
@@ -24,7 +23,7 @@ export const chunks = pgTable('chunks', {
         embedding: vector('embedding', {dimensions: 1024}).notNull(),
         originalContent: text('original_content'),
         contextualContent: text('contextual_content'),
-        documentId: uuid('document_id').notNull().references(() => documents.id, {onDelete: 'cascade'}),
+        documentId: text('document_path').notNull().references(() => documents.path, {onDelete: 'cascade'}),
         chunkIndex: integer('chunk_index').notNull(),
     },
     (table) => ({
@@ -37,8 +36,7 @@ export const images = pgTable('images', {
         url: text('url').primaryKey(),
         alt: text('alt_text'),
         embedding: vector('embedding', {dimensions: 1024}).notNull(),
-        documentId: uuid('document_id').notNull().references(() => documents.id, {onDelete: 'cascade'}),
-        chunkId: text('chunk_id').references(() => chunks.id, {onDelete: 'cascade'}),
+        documentPath: text('document_path').notNull().references(() => documents.path, {onDelete: 'cascade'}),
     },
     (table) => ({
         embeddingIndex: index('images_embedding_index').using('hnsw', table.embedding.op('vector_cosine_ops'))

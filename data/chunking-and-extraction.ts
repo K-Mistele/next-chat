@@ -1,21 +1,18 @@
 import {RecursiveCharacterTextSplitter} from 'langchain/text_splitter'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import {
-    documents,
-    chunks,
-    images,
-    type NewDocument,
-    type NewImage,
-    type NewChunk
-} from '../src/db/schema'
+import type { NewDocument, NewImage, NewChunk} from '@/db/schema'
+import {embedChunks, embedImages} from './embedding'
+import {CohereClient} from 'cohere-ai'
+import {contextualizeChunks} from './contextualize'
+
 
 /**
  * Recursively find mdx files in a specified directlry
  * @param dir
  * @param filePaths
  */
-async function findMdxFiles(dir: string, filePaths: Array<string>) {
+export async function findMdxFiles(dir: string, filePaths: Array<string>) {
     const files = await fs.readdir(dir, {withFileTypes: true})
 
     const filePromises = []
@@ -64,7 +61,8 @@ function extractMDXMetadata(mdxContent: string) {
             // Check if the line contains a title or description
             if (line.startsWith('title:')) {
                 metadata.title = line.replace(/^title:\s*/, '').trim() || null; // set to null if empty
-            } else if (line.startsWith('description:')) {
+            }
+            else if (line.startsWith('description:')) {
                 metadata.description = line.replace(/^description:\s*/, '').trim() || null; // set to null if empty
             }
         });
@@ -95,7 +93,7 @@ async function loadDocument(path: string): Promise<NewDocument> {
  * Asynchronously load all documents
  * @param paths
  */
-async function loadDocuments(paths: Array<string>): Promise<Array<NewDocument>> {
+export async function loadDocuments(paths: Array<string>): Promise<Array<NewDocument>> {
 
     const documentPromises: Array<Promise<NewDocument>> = []
     for (const path of paths) {
@@ -109,9 +107,9 @@ interface ImageData {
     url: string
     alt: string
 }
+
 const imageTagRegex = /<Image\s*([^>]*?)\/>/g;
 const altTextRegex = /alt=["']?([^"']+)["']?/;
-
 
 /**
  * Extract the image tags from a document
@@ -127,7 +125,7 @@ function extractImageTags(document: NewDocument): Array<ImageData> {
     let match;
     while ((match = imageTagRegex.exec(document.contents!)) !== null) {
         const attributesString = match[1];
-        const attributes = { srcDark: null, alt: null };
+        const attributes = {srcDark: null, alt: null};
 
         let attrMatch;
         while ((attrMatch = attributesRegex.exec(attributesString)) !== null) {
@@ -138,7 +136,7 @@ function extractImageTags(document: NewDocument): Array<ImageData> {
         }
         if (attributes.srcDark && attributes.alt) {
             images.push({
-                url: attributes.srcDark,
+                url: `https://nextjs.org` + attributes.srcDark,
                 alt: attributes.alt,
             })
         }
@@ -149,78 +147,55 @@ function extractImageTags(document: NewDocument): Array<ImageData> {
 }
 
 /**
- * Extract images from documents and embed them
+ * Extract images from documents and embed them; using caching with redis
  * @param documents
  */
-async function extractAndEmbedImages(documents: Array<NewDocument>): Promise<Array<NewImage>> {
-
-    const newImages: Array<NewImage> = []
+export async function extractAndEmbedImages(documents: Array<NewDocument>): Promise<Array<NewImage>> {
 
     // Build a map of the document path to the array of images in it
-    const imageTagsForDocuments: Record<string, Array<ImageData>> = {}
+    const imageTagData: Array<{alt: string, url: string, path: string}> = []
     for (const document of documents) {
-        imageTagsForDocuments[document.path] = extractImageTags(document)
+        const imageTagsForDocument = extractImageTags(document)
+            .map(data => ({path: document.path, ...data}))
+        imageTagData.push(...imageTagsForDocument)
     }
 
-    // TODO update the full URL. embed the alt text NOT the image since the images will not embed well, and we have
-    //  high-quality alt text thanks to vercel
+    return await embedImages(imageTagData)
 
-
-    return newImages
 }
 
-async function extractAndEmbedChunks(documents: Array<Document>): Promise<Array<NewChunk>> {
+export async function extractAndEmbedChunks(documents: Array<NewDocument>): Promise<Array<NewChunk>> {
 
-    const newChunks: Array<NewChunk> = []
-
-    return newChunks
-}
-
-// NOTE that our vector has a context size of like 512, and we will add like 100 tokens too
-const markdownSplitter = RecursiveCharacterTextSplitter.fromLanguage('markdown', {
-    chunkSize: 350,
-    chunkOverlap: 0, // no need since we are doing contextual retrieval
-})
-
-/**
- * Entrypoint
- */
-async function main() {
-
-    // Locate MDX Files and get an array of file paths
-    console.log(`Finding MDX files...`)
-    let start = performance.now()
-    const filePaths: Array<string> = []
-    await findMdxFiles(`./docs`, filePaths)
-    let end = performance.now()
-    console.log(`Found ${filePaths.length} MDX files in ${Math.floor(end-start)} ms`)
-
-    // read each document, and load the contents.
-    console.log(`Loading documents...`)
-    start = performance.now()
-    const documents: Array<NewDocument> = await loadDocuments(filePaths)
-    end = performance.now()
-    console.log(`Processed ${documents.length} documents in ${Math.floor(end-start)} ms`)
-
-
-    // Extract and embed image tags
-    console.log(`Loading image tags...`)
-    start = performance.now()
-    const imageData = await extractAndEmbedImages(documents)
-    end = performance.now()
-    console.log(`Processed ${documents.length} documents for images in ${Math.floor(end-start)} ms`)
-}
-
-
-/**
- * Enter it :)
- */
-main()
-    .then(() => {
-        console.log(`done!`)
-        process.exit(0)
+    // Ideal embeddings CTX size is 512, and we need about 100 tokens for the semantic summary
+    const markdownSplitter = RecursiveCharacterTextSplitter.fromLanguage('markdown', {
+        chunkSize: 1000, // cohere: 1000 characters -> 200-300 tokens
+        chunkOverlap: 0, // no need since we are doing contextual retrieval
     })
-    .catch(err => {
-        console.error(err)
-        process.exit(1)
+
+    const documentPromises = documents.map(async (doc) => {
+        const docs = await markdownSplitter.createDocuments([doc.contents || ''])
+        const chunks = docs.map(doc => ({
+            pageContent: doc.pageContent,
+            metadata: {
+                loc: {
+                    lines: {
+                        from: doc.metadata.loc.lines.from,
+                        to: doc.metadata.loc.lines.to
+                    }
+                }
+            }
+        }))
+        return {
+            ...doc,
+            chunks
+        }
     })
+
+    const documentsWithChunks = await Promise.all(documentPromises)
+    const contextualizedDocumentsWithChunks = await contextualizeChunks(documentsWithChunks)
+
+    console.log(`Finished contextualizing documents!`)
+
+    return await embedChunks(documentsWithChunks)
+
+}
