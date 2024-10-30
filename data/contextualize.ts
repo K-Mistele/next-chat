@@ -1,8 +1,9 @@
 import {generateText} from 'ai'
 import {openai} from '@ai-sdk/openai'
 
-import {ContextualizedChunk, DocumentWithChunks, DocumentWithContextualizedChunks, LangchainChunk} from './types'
+import {ContextualizedChunk, DocumentWithChunks, DocumentWithContextualizedChunks} from './types'
 import {cacheContextualizedChunk, loadCachedContextualizedChunk} from './redis'
+import {sliceArrayIntoParts} from './utils'
 
 const gpt4oMini = openai('gpt-4o-mini')
 
@@ -21,20 +22,6 @@ function buildPrompt(document: string, chunk: string) {
     Please give a short succinct context to situate this chunk within the overall document for the purposes of improving 
     search retrieval of the chunk. Answer only with the succinct context and nothing else.
     `
-}
-
-function sliceArrayIntoParts<T>(array: Array<T>, numParts: number): Array<Array<T>> {
-    const result = [];
-    const partSize = Math.ceil(array.length / numParts); // Calculate size of each part
-
-    for (let i = 0; i < numParts; i++) {
-        const start = i * partSize;
-        const end = start + partSize;
-        const part = array.slice(start, end); // Use slice to get part of the array
-        result.push(part);
-    }
-
-    return result;
 }
 
 /**
@@ -59,18 +46,22 @@ export async function contextualizeChunks(docsWithChunks: Array<DocumentWithChun
 
     const allDocs: Array<DocumentWithContextualizedChunks> = []
 
-    const documentGroups = sliceArrayIntoParts<DocumentWithChunks>(
-        docsWithChunks,
-        60 // 60 parts, 613 documents -> groups of 10 documents
-    )
+    const documentGroupsArray: Array<Array<DocumentWithChunks>>  = []
+    for (let i = 0; i < docsWithChunks.length; i++) {
+        if (i % 10 === 0) {
+            documentGroupsArray.push([] satisfies Array<DocumentWithChunks>)
+        }
+        documentGroupsArray[documentGroupsArray.length - 1].push(docsWithChunks[i])
+    }
+
 
     let contextCacheMisses: number = 0;
     let contextCacheHits: number = 0;
 
-    for (let k = 0; k < documentGroups.length; k++) {
+    for (let k = 0; k < documentGroupsArray.length; k++) {
 
-        console.log(`Starting on document group ${k} of ${documentGroups.length}`)
-        const docGroup = documentGroups[k]
+        console.log(`Starting on document group ${k} of ${documentGroupsArray.length}`)
+        const docGroup = documentGroupsArray[k]
         const documentPromises = docGroup.map(async (doc, idx: number): Promise<DocumentWithContextualizedChunks> => {
             console.log(`Starting processing for document ${idx} (misses: ${contextCacheMisses}, hits: ${contextCacheHits})`)
 
@@ -92,7 +83,7 @@ export async function contextualizeChunks(docsWithChunks: Array<DocumentWithChun
                     contextualizedChunksForDocument.push({
                         ...chunk,
                         id: chunkId,
-                        contextualizedContent: cachedChunkContext
+                        contextualizedContent: `${cachedChunkContext}\n\n${chunk.pageContent}`
                     })
                 }
                 // cache miss for chunk
@@ -100,6 +91,7 @@ export async function contextualizeChunks(docsWithChunks: Array<DocumentWithChun
                     contextCacheMisses++
                     const context = await contextualizeChunk(doc.contents || '', chunk.pageContent)
 
+                    console.log(`caching contextualized chunk ${chunkId}`)
                     await cacheContextualizedChunk(chunkId, context)
                     contextualizedChunksForDocument.push({
                         ...chunk,
@@ -120,7 +112,7 @@ export async function contextualizeChunks(docsWithChunks: Array<DocumentWithChun
         })
         const groupResults = await Promise.all(documentPromises)
         allDocs.push(...groupResults)
-        console.log(`finished document group ${k} of ${documentGroups.length}`)
+        console.log(`finished document group ${k} of ${documentGroupsArray.length}`)
     }
 
 

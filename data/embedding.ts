@@ -1,7 +1,13 @@
 import type {NewChunk, NewImage} from '@/db/schema'
-import {cacheImgEmbedding, loadCachedImgEmbedding} from './redis'
+import {
+    cacheContextualizedChunk,
+    cacheImgEmbedding,
+    loadCachedChunkEmbedding,
+    loadCachedImgEmbedding,
+    storeChunkEmbedding
+} from './redis'
 import {CohereClient} from 'cohere-ai'
-import {DocumentWithChunks} from './types'
+import {ContextualizedChunk, DocumentWithChunks, DocumentWithContextualizedChunks} from './types'
 
 const MAX_EMBEDDINGS_AT_ONCE = 96
 
@@ -9,9 +15,9 @@ const cohere = new CohereClient({
     token: process.env.COHERE_API_KEY
 })
 
-export async function embedImages(images: Array<{url: string, alt: string, path: string}>): Promise<Array<NewImage>> {
+export async function embedImages(images: Array<{ url: string, alt: string, path: string }>): Promise<Array<NewImage>> {
 
-    let imagesToEmbed: Array<{url: string, alt: string, path: string}> = []
+    let imagesToEmbed: Array<{ url: string, alt: string, path: string }> = []
     const completedImages: Array<NewImage> = []
 
     let newEmbeddingsCount: number = 0;
@@ -48,16 +54,16 @@ export async function embedImages(images: Array<{url: string, alt: string, path:
                 const imagesWithEmbeddings =
                     imagesToEmbed.map((img, idx) => {
 
-                    const floatEmbeddings = result.embeddings.float
-                    if (!floatEmbeddings) throw new Error(`MISSING FLOAT EMBEDDINGS`)
-                    const embedding = floatEmbeddings[idx]
-                    return {
-                        embedding,
-                        url: img.url,
-                        documentPath: img.path,
-                        alt: img.alt
-                    }
-                })
+                        const floatEmbeddings = result.embeddings.float
+                        if (!floatEmbeddings) throw new Error(`MISSING FLOAT EMBEDDINGS`)
+                        const embedding = floatEmbeddings[idx]
+                        return {
+                            embedding,
+                            url: img.url,
+                            documentPath: img.path,
+                            alt: img.alt
+                        }
+                    })
                 completedImages.push(...imagesWithEmbeddings)
                 await Promise.all(imagesWithEmbeddings.map(img => cacheImgEmbedding(img.url, img.embedding)))
                 newEmbeddingsCount += imagesWithEmbeddings.length
@@ -73,8 +79,95 @@ export async function embedImages(images: Array<{url: string, alt: string, path:
 }
 
 
-export async function embedChunks(chunks: Array<DocumentWithChunks>): Promise<Array<NewChunk>> {
+export async function embedChunks(docsWithContextualizedChunks: Array<DocumentWithContextualizedChunks>): Promise<Array<NewChunk>> {
 
+    let maxChunksPerDocument = 0;
+    const chunkCount = docsWithContextualizedChunks.reduce<number>(
+        (previousValue, currentValue, index) => {
+            if (currentValue.chunks.length > maxChunksPerDocument) {
+                maxChunksPerDocument = currentValue.chunks.length
+            }
+            return previousValue + currentValue.chunks.length
+        },
+        0
+    )
+    console.log(`There are ${chunkCount} total chunks, it will take ${Math.ceil(chunkCount / 96) + 1} requests to embed`)
+    console.log(`larged number of chunks in a single document:`, maxChunksPerDocument)
 
-    return []
+    // Flatmap the documents with contextual chunks to NewChunk
+    const chunksToEmbed: Array<NewChunk> = docsWithContextualizedChunks.reduce<Array<NewChunk>>(
+        (
+            previousValue: Array<NewChunk>,
+            document: DocumentWithContextualizedChunks,
+            currentIndex: number
+        ) => {
+
+            const newChunks = document.chunks.map((c: ContextualizedChunk, index: number): NewChunk => ({
+
+                id: c.id,
+                originalContent: c.pageContent,
+                contextualContent: c.contextualizedContent,
+                documentId: document.path,
+                chunkIndex: index, // index of chunk in document
+                embedding: [] // TODO this actually will still need to be calculated
+            }))
+
+            previousValue.push(...newChunks)
+            return previousValue
+        },
+        [] satisfies Array<NewChunk> // start with empty array
+    )
+
+    // array to buffer up to MAX_EMBEDDINGS_AT_ONCE chunks before runnign embeddings on them
+    let bufferOfPendingChunks: Array<NewChunk> = []
+
+    // The array that stores chunks once they have finished being embedded
+    const embeddedChunks: Array<NewChunk> = []
+
+    // Cache data
+    let chunkCacheHits: number = 0;
+    let chunkCacheMisses: number = 0;
+    let newEmbeddings: number = 0;
+
+    console.log(`Calculating chunk embeddings...`)
+    for (let i = 0; i < chunksToEmbed.length; i++) {
+        const chunk = chunksToEmbed[i]
+        const chunkEmbedding = await loadCachedChunkEmbedding(chunk.id, chunk.contextualContent || '')
+        if (chunkEmbedding) {
+            chunkCacheHits++
+            embeddedChunks.push({
+                ...chunk,
+                embedding: chunkEmbedding
+            })
+        }
+        else {
+            chunkCacheMisses++
+            bufferOfPendingChunks.push(chunk)
+
+            if (bufferOfPendingChunks.length % MAX_EMBEDDINGS_AT_ONCE === 0 || i === chunksToEmbed.length - 1) {
+                console.log(`Calculating ${bufferOfPendingChunks.length} new embeddings at index ${i} of ${chunksToEmbed.length}`)
+                console.log(bufferOfPendingChunks.map(c => c.contextualContent))
+                const result = await cohere.v2.embed({
+                    texts: bufferOfPendingChunks.map(c => c.contextualContent || c.originalContent || ''),
+                    model: 'embed-english-v3.0',
+                    inputType: 'search_document',
+                    embeddingTypes: ['float']
+                })
+
+                const chunksWithEmbeddings = bufferOfPendingChunks.map((chunk, index) => ({
+                    ...chunk,
+                    embedding: result.embeddings.float![i]
+                }))
+                embeddedChunks.push(...chunksWithEmbeddings)
+                await Promise.all(chunksWithEmbeddings.map(chunk => storeChunkEmbedding(chunk.id, chunk.contextualContent || '', chunk.embedding)))
+                newEmbeddings += embeddedChunks.length
+                bufferOfPendingChunks = []
+            }
+        }
+    }
+
+    console.log(`Finished calculating chunk embeddings with ${chunkCacheMisses} cache misses and ${chunkCacheHits} cache hits`)
+    console.log(`New embeddings: ${newEmbeddings}`)
+
+    return embeddedChunks
 }

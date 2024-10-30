@@ -53,18 +53,14 @@ export async function loadCachedChunkEmbedding(
     const key: string = `chunk:${chunkId}`
     const result = await redis.HGETALL(key)
 
-    if (!result.hash) {
-        redis.DEL(key) // invalidate cache since hash is missing
+    if ((!result.hash) || result.hash != sha256Hash(chunkContent)) {
+        redis.HDEL(key, 'embedding') // invalidate cached embedding since hash is missing
         return null
     }
     if (!result.embedding) {
-        redis.DEL(key) // invalidate cache since there is no embedding
         return null
     }
-    if (result.hash != sha256Hash(chunkContent)) {
-        redis.DEL(key) // invalidate cache since hash of content is different
-        return null
-    }
+
     return JSON.parse(result.embedding) as Array<number>
 }
 
@@ -106,7 +102,8 @@ export async function cacheContextualizedChunk(
     const redis = await client
     const key: string = `chunk:${chunkId}`
 
-    await redis.HSET(key, 'contextualizedChunk', contextualizedChunk)
+    const result = await redis.HSET(key, 'contextualizedChunk', contextualizedChunk)
+    if (!result) console.error(`FAILED to cache chunk ${chunkId} contextualization: ${contextualizedChunk}`)
 }
 
 /**

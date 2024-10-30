@@ -196,6 +196,6 @@ export async function extractAndEmbedChunks(documents: Array<NewDocument>): Prom
 
     console.log(`Finished contextualizing documents!`)
 
-    return await embedChunks(documentsWithChunks)
+    return await embedChunks(contextualizedDocumentsWithChunks)
 
 }
