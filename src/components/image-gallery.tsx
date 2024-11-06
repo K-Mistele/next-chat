@@ -11,20 +11,19 @@ export interface ImageInfo {
 }
 
 export interface ImageGalleryProps {
-    images: Promise<Array<ImageInfo>>
+    images: Array<ImageInfo>
 }
 
 export function ImageGallery({images}: ImageGalleryProps) {
 
-    const imageData = use(images)
     const [showMoreImages, setShowMoreImages] = useState<boolean>(false)
 
     const selectedImages = useMemo(() => {
 
         return showMoreImages
-            ? imageData
-            : imageData.slice(0, 3)
-    }, [imageData, showMoreImages])
+            ? images
+            : images.slice(0, 3)
+    }, [images, showMoreImages])
 
     return (
 
@@ -57,7 +56,7 @@ export function ImageGallery({images}: ImageGalleryProps) {
                          'rounded-xl text-md lg:text-sm',
                          'shadow-md transition-all duration-200 ease-in-out hover:scale-[1.02] hover:shadow-lg'
                      )}>
-                    Click to show {imageData.length - selectedImages.length} more
+                    Click to show {images.length - selectedImages.length} more
                 </div>
             }
         </div>

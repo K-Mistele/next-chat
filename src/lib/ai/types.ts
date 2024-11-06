@@ -8,4 +8,12 @@ export type ExtractedKeywordsMessage = {
     keywords: Array<string>
 }
 
-export type DataStreamMessage = RewrittenQueryMessage | ExtractedKeywordsMessage
+export type RelatedImagesMessage = {
+    type: 'relatedImages',
+    imageData: Array<{
+        url: string,
+        alt: string
+    }>
+}
+
+export type DataStreamMessage = RewrittenQueryMessage | ExtractedKeywordsMessage | RelatedImagesMessage

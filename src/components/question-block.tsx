@@ -93,10 +93,13 @@ const mockSources: Array<Source> = [
 
 export function QuestionBlock({item}: QuestionBlockProps) {
 
+    console.log(`question block render`)
+
     const [isOpen, setIsOpen] = useState<boolean>(true)
     const [sourcesIsOpen, setSourcesIsOpen] = useState<boolean>(true)
     const imagesMockPromise = useMemo(() => Promise.resolve(mockImageUrls), [])
     const sourcesMockPromise = useMemo(() => Promise.resolve(mockSources), [])
+
 
     // Extract rewritten query
     const rewrittenQuery = useMemo<string | null>(() => {
@@ -119,6 +122,16 @@ export function QuestionBlock({item}: QuestionBlockProps) {
         const keywordsAnnotation = annotations.find((annotation: DataStreamMessage) => annotation.type === 'extractedKeywords')
         if (keywordsAnnotation) keywords.push(...keywordsAnnotation.keywords)
         return keywords
+
+    }, [item.answer?.annotations, item?.answer?.annotations?.length])
+
+    const imagesData = useMemo<Array<{ url: string, alt: string }> | null>(() => {
+        let images = null;
+        if (!item?.answer?.annotations) return images
+        const annotations = item.answer.annotations as Array<DataStreamMessage>
+        const imagesAnnotation = annotations.find((annotation: DataStreamMessage) => annotation.type === 'relatedImages')
+        if (imagesAnnotation) images = imagesAnnotation.imageData
+        return images;
 
     }, [item.answer?.annotations, item?.answer?.annotations?.length])
 
@@ -228,11 +241,12 @@ export function QuestionBlock({item}: QuestionBlockProps) {
                             </div>
 
                             {/* TODO list - show 3, plus fourth option to click and show 5 - replace, plus new row*/}
-                            <ErrorBoundary fallback={<ImageGalleryLoading/>}>
-                                <Suspense fallback={<ImageGalleryLoading/>}>
-                                    <ImageGallery images={imagesMockPromise}/>
-                                </Suspense>
-                            </ErrorBoundary>
+                            {
+                                imagesData
+                                    ? <ImageGallery images={imagesData}/>
+                                    : <ImageGalleryLoading/>
+                            }
+
                         </section>
                     </div>
                 </div>

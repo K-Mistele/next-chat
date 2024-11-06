@@ -7,6 +7,7 @@ import {
     integer,
     index
 } from 'drizzle-orm/pg-core'
+import {sql} from 'drizzle-orm'
 
 // Store the WHOLE documents - they are small, so should not be a big deal
 export const documents = pgTable('documents', {
@@ -27,7 +28,8 @@ export const chunks = pgTable('chunks', {
         chunkIndex: integer('chunk_index').notNull(),
     },
     (table) => ({
-        embeddingIndex: index('chunks_embedding_index').using('hnsw', table.embedding.op('vector_cosine_ops'))
+        embeddingIndex: index('chunks_embedding_index').using('hnsw', table.embedding.op('vector_cosine_ops')),
+        tsVectorIndex: index('chunks_tsvector_index').using('gin', sql`to_tsvector('english', ${table.contextualContent})`)
     })
 )
 
@@ -39,7 +41,8 @@ export const images = pgTable('images', {
         documentPath: text('document_path').notNull().references(() => documents.path, {onDelete: 'cascade'}),
     },
     (table) => ({
-        embeddingIndex: index('images_embedding_index').using('hnsw', table.embedding.op('vector_cosine_ops'))
+        embeddingIndex: index('images_embedding_index').using('hnsw', table.embedding.op('vector_cosine_ops')),
+        tsVectorIndex: index('images_tsvector_index').using('gin', sql`to_tsvector('english', ${table.alt})`)
     })
 )
 

@@ -6,6 +6,8 @@ import {rewriteQuery} from '@/lib/ai/agents/query-rewriter'
 import {getMessageTextContent} from '@/lib/ai/utils'
 import {extractKeywords} from '@/lib/ai/agents/keyword-extractor'
 import type {DataStreamMessage} from '@/lib/ai/types'
+import {Image} from '@/db/schema'
+import {findImages} from '@/lib/retrieval/image-retrieval'
 
 export async function POST(request: Request) {
 
@@ -30,6 +32,7 @@ export async function POST(request: Request) {
             })
     })
 
+    // Extract keywords; stream to client
     const keywords = new Promise<Array<string>|null>((resolve) => {
         // extract keywrods for keyword-based search
         extractKeywords(userQuery)
@@ -46,6 +49,30 @@ export async function POST(request: Request) {
             .catch(err => {
                 logger.error(`Error extracting keywords: `, err)
                 resolve(null)
+            })
+    })
+
+    // Promise to retrieve images; sends the data when it has been resolved
+    const images = new Promise<Array<Image>>((resolve) => {
+        Promise.all([rewrittenQuery, keywords])
+            .then(([query, keywords]: [string, Array<string> | null]) => {
+                findImages(query, keywords || [])
+                    .then(images => {
+                        const imageData = images.map(img => ({
+                            url: img.url,
+                            alt: img.alt || ''
+                        }))
+                        data.appendMessageAnnotation({type: 'relatedImages', imageData} satisfies DataStreamMessage)
+                        resolve(images)
+                    })
+                    .catch((err: any) => {
+                        logger.error(`Failed to retrieve images:`, err)
+                        resolve([])
+                    })
+            })
+            .catch((err: any) => {
+                logger.error(`Unable to retrieve query and keywords for image retrieval:`, err)
+                resolve([])
             })
     })
 

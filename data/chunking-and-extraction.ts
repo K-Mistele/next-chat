@@ -3,7 +3,6 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import type { NewDocument, NewImage, NewChunk} from '@/db/schema'
 import {embedChunks, embedImages} from './embedding'
-import {CohereClient} from 'cohere-ai'
 import {contextualizeChunks} from './contextualize'
 import logger from '@/lib/logger'
 
