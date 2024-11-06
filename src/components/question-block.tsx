@@ -14,6 +14,8 @@ import {Source, SourcesListCarousel} from '@/components/sources-list'
 import {SourcesListLoading} from '@/components/loading/sources-list-loading'
 import {EnhancedMarkdown} from '@/components/enhanced-markdown'
 import {Separator} from '@/components/ui/separator'
+import type {DataStreamMessage} from '@/lib/ai/types'
+import {RewrittenQueryLoadingBadge} from '@/components/loading/rewritten-query-loading-badge'
 
 export interface ConversationItem {
     question: Message
@@ -89,7 +91,17 @@ export function QuestionBlock({item}: QuestionBlockProps) {
     const [sourcesIsOpen, setSourcesIsOpen] = useState<boolean>(true)
     const imagesMockPromise = useMemo(() => Promise.resolve(mockImageUrls), [])
     const sourcesMockPromise = useMemo(() => Promise.resolve(mockSources), [])
+    const rewrittenQuery = useMemo<string | null>(() => {
 
+        if (!item?.answer?.annotations) return null
+        const annotations = item.answer.annotations as Array<DataStreamMessage>
+
+        const annotation = annotations.find((annotation: DataStreamMessage) => annotation.type === 'rewrittenQuery')
+        return annotation
+            ? annotation.query
+            : null
+
+    }, [item.answer?.annotations, item?.answer?.annotations?.length])
 
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -108,10 +120,19 @@ export function QuestionBlock({item}: QuestionBlockProps) {
 
                 {/*    Section: rewritten query*/}
                 <section id={'query'} className={'pt-2 pb-0 w-full'}>
-                    <Badge variant={'secondary'} className={'focus:ring-0'}>
-                        <MagnifyingGlassIcon className={'size-4'}/>
-                        <span className={'ml-1'}>Next.js dynamic route segments (rewritten)</span>
-                    </Badge>
+                    {
+                        rewrittenQuery
+                            ? (
+                                <Badge variant={'secondary'} className={'focus:ring-0'}>
+                                    <MagnifyingGlassIcon className={'size-4'}/>
+                                    <span className={'ml-1'}>{rewrittenQuery}</span>
+                                </Badge>
+                            )
+                            : (
+                                <RewrittenQueryLoadingBadge/>
+                            )
+                    }
+
                 </section>
 
                 <div className={'w-full flex flex-col lg:grid grid-cols-12 gap-8'}>
@@ -153,8 +174,8 @@ export function QuestionBlock({item}: QuestionBlockProps) {
                             {/* Load the content OR a loading state*/}
                             {
                                 item.answer?.content.length
-                                ? <EnhancedMarkdown>{item.answer?.content}</EnhancedMarkdown>
-                                : <></>
+                                    ? <EnhancedMarkdown>{item.answer?.content}</EnhancedMarkdown>
+                                    : <></>
                             }
 
                         </section>
@@ -184,4 +205,5 @@ export function QuestionBlock({item}: QuestionBlockProps) {
             </CollapsibleContent>
         </Collapsible>
     )
+
 }

@@ -5,18 +5,7 @@ import logger from '@/lib/logger'
 import {rewriteQuery} from '@/lib/ai/agents/query-rewriter'
 import {getMessageTextContent} from '@/lib/ai/utils'
 import {extractKeywords} from '@/lib/ai/agents/keyword-extractor'
-
-type RewrittenQueryMessage = {
-    type: 'rewrittenQuery',
-    query: string
-}
-
-type ExtractedKeywordsMessage = {
-    type: 'extractedKeywords',
-    keywords: Array<string>
-}
-
-type DataStreamMessage = RewrittenQueryMessage | ExtractedKeywordsMessage
+import type {DataStreamMessage} from '@/lib/ai/types'
 
 export async function POST(request: Request) {
 
