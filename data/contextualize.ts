@@ -3,7 +3,7 @@ import {openai} from '@ai-sdk/openai'
 
 import {ContextualizedChunk, DocumentWithChunks, DocumentWithContextualizedChunks} from './types'
 import {cacheContextualizedChunk, loadCachedContextualizedChunk} from './redis'
-import {sliceArrayIntoParts} from './utils'
+import logger from '@/lib/logger'
 
 const gpt4oMini = openai('gpt-4o-mini')
 
@@ -60,10 +60,10 @@ export async function contextualizeChunks(docsWithChunks: Array<DocumentWithChun
 
     for (let k = 0; k < documentGroupsArray.length; k++) {
 
-        console.log(`Starting on document group ${k} of ${documentGroupsArray.length}`)
+        logger.debug(`Starting on document group ${k} of ${documentGroupsArray.length}`)
         const docGroup = documentGroupsArray[k]
         const documentPromises = docGroup.map(async (doc, idx: number): Promise<DocumentWithContextualizedChunks> => {
-            console.log(`Starting processing for document ${idx} (misses: ${contextCacheMisses}, hits: ${contextCacheHits})`)
+            logger.debug(`Starting processing for document ${idx} (misses: ${contextCacheMisses}, hits: ${contextCacheHits})`)
 
             const startCacheMisses = contextCacheMisses
             const startCacheHits = contextCacheHits
@@ -91,7 +91,7 @@ export async function contextualizeChunks(docsWithChunks: Array<DocumentWithChun
                     contextCacheMisses++
                     const context = await contextualizeChunk(doc.contents || '', chunk.pageContent)
 
-                    console.log(`caching contextualized chunk ${chunkId}`)
+                    logger.debug(`caching contextualized chunk ${chunkId}`)
                     await cacheContextualizedChunk(chunkId, context)
                     contextualizedChunksForDocument.push({
                         ...chunk,
@@ -102,8 +102,9 @@ export async function contextualizeChunks(docsWithChunks: Array<DocumentWithChun
             }
 
             // Chunks finished processing
-            console.log(`After document ${idx}, there were ${contextCacheMisses - startCacheMisses} new cache misses`)
-            console.log(`After document ${idx}, there were ${contextCacheHits - startCacheHits} new cache hits`)
+            logger.debug(`After document ${idx}, there were ${contextCacheMisses - startCacheMisses} new cache misses` +
+             `and ${contextCacheHits - startCacheHits} new cache hits`)
+
 
             return {
                 ...doc,
@@ -112,11 +113,11 @@ export async function contextualizeChunks(docsWithChunks: Array<DocumentWithChun
         })
         const groupResults = await Promise.all(documentPromises)
         allDocs.push(...groupResults)
-        console.log(`finished document group ${k} of ${documentGroupsArray.length}`)
+        logger.debug(`finished document group ${k} of ${documentGroupsArray.length}`)
     }
 
 
-    console.log(`Total cache hits:`, contextCacheHits)
-    console.log(`Total cache misses: `, contextCacheMisses)
+    logger.info(`Total cache hits:`, contextCacheHits)
+    logger.info(`Total cache misses: `, contextCacheMisses)
     return allDocs
 }

@@ -9,4 +9,4 @@ const response = await client.tokenize({
     text: text
 })
 
-console.log(`length: ${response.tokens.length}`)
+console.debug(`length: ${response.tokens.length}`)

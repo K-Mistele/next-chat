@@ -1,6 +1,7 @@
 import Redis from 'redis'
 import 'dotenv/config'
 import {createHash} from 'node:crypto'
+import logger from '@/lib/logger'
 
 const host = process.env.REDIS_HOST || 'localhost'
 const port = Number(process.env.REDIS_PORT || 6379)
@@ -80,10 +81,16 @@ export async function storeChunkEmbedding(
     const key: string = `chunk:${chunkId}`
     const redis = await client
 
-    await Promise.all([
-        redis.HSET(key, 'hash', hash),
-        redis.HSET(key, 'embedding', JSON.stringify(embedding))
-    ])
+    try {
+        await Promise.all([
+            redis.HSET(key, 'hash', hash),
+            redis.HSET(key, 'embedding', JSON.stringify(embedding))
+        ])
+    }
+    catch (err: any) {
+        logger.error(`Error trying to store chunk embedding for chunk ${chunkId}`, chunkContent, embedding)
+    }
+
 }
 
 function sha256Hash(content: string): string {
@@ -103,7 +110,7 @@ export async function cacheContextualizedChunk(
     const key: string = `chunk:${chunkId}`
 
     const result = await redis.HSET(key, 'contextualizedChunk', contextualizedChunk)
-    if (!result) console.error(`FAILED to cache chunk ${chunkId} contextualization: ${contextualizedChunk}`)
+    if (!result) logger.error(`FAILED to cache chunk ${chunkId} contextualization: ${contextualizedChunk}`)
 }
 
 /**

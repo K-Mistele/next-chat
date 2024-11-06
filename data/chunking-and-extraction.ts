@@ -5,7 +5,7 @@ import type { NewDocument, NewImage, NewChunk} from '@/db/schema'
 import {embedChunks, embedImages} from './embedding'
 import {CohereClient} from 'cohere-ai'
 import {contextualizeChunks} from './contextualize'
-
+import logger from '@/lib/logger'
 
 /**
  * Recursively find mdx files in a specified directlry
@@ -19,12 +19,12 @@ export async function findMdxFiles(dir: string, filePaths: Array<string>) {
     for (const file of files) {
         const filePath = path.join(dir, file.name)
         if (file.isDirectory()) {
-            console.log(`Found directory:`, filePath)
+            logger.debug(`Found directory:`, filePath)
             filePromises.push(findMdxFiles(filePath, filePaths))
         }
         else if (file.isFile() && path.extname(file.name) === '.mdx') {
-            console.log(`Found file: `, filePath)
-            console.log(`length:`, filePaths.push(filePath))
+            logger.info(`Found file: `, filePath)
+            logger.debug(`length:`, filePaths.push(filePath))
         }
     }
 
@@ -194,7 +194,7 @@ export async function extractAndEmbedChunks(documents: Array<NewDocument>): Prom
     const documentsWithChunks = await Promise.all(documentPromises)
     const contextualizedDocumentsWithChunks = await contextualizeChunks(documentsWithChunks)
 
-    console.log(`Finished contextualizing documents!`)
+    logger.info(`Finished contextualizing documents!`)
 
     return await embedChunks(contextualizedDocumentsWithChunks)
 
