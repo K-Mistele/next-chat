@@ -7,7 +7,7 @@ export function useAtBottom() {
     const { ref, entry, inView } = useInView({
         trackVisibility: true,
         delay: 100,
-        rootMargin: '0px 0px -150px 0px',
+        rootMargin: '0px 0px 0px 0px',
     })
     useEffect(() => {
         //console.log(`is in view?`, inView)
