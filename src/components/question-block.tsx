@@ -4,7 +4,14 @@ import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/
 import {Button} from '@/components/ui/button'
 import type {Message} from 'ai'
 import {useState, Suspense, useMemo} from 'react'
-import {BookCheckIcon, ChevronsUpDown, ChevronsUpDownIcon, ImagesIcon, NewspaperIcon} from 'lucide-react'
+import {
+    BookCheckIcon,
+    ChevronsUpDown,
+    ChevronsUpDownIcon,
+    ImagesIcon,
+    KeySquareIcon,
+    NewspaperIcon
+} from 'lucide-react'
 import {Badge} from '@/components/ui/badge'
 import {MagnifyingGlassIcon} from '@radix-ui/react-icons'
 import {ErrorBoundary} from 'react-error-boundary'
@@ -13,9 +20,8 @@ import {ImageGalleryLoading} from '@/components/loading/image-gallery-loading'
 import {Source, SourcesListCarousel} from '@/components/sources-list'
 import {SourcesListLoading} from '@/components/loading/sources-list-loading'
 import {EnhancedMarkdown} from '@/components/enhanced-markdown'
-import {Separator} from '@/components/ui/separator'
 import type {DataStreamMessage} from '@/lib/ai/types'
-import {RewrittenQueryLoadingBadge} from '@/components/loading/rewritten-query-loading-badge'
+import {LoadingBadge} from '@/components/loading/loading-badge'
 
 export interface ConversationItem {
     question: Message
@@ -91,6 +97,8 @@ export function QuestionBlock({item}: QuestionBlockProps) {
     const [sourcesIsOpen, setSourcesIsOpen] = useState<boolean>(true)
     const imagesMockPromise = useMemo(() => Promise.resolve(mockImageUrls), [])
     const sourcesMockPromise = useMemo(() => Promise.resolve(mockSources), [])
+
+    // Extract rewritten query
     const rewrittenQuery = useMemo<string | null>(() => {
 
         if (!item?.answer?.annotations) return null
@@ -100,6 +108,17 @@ export function QuestionBlock({item}: QuestionBlockProps) {
         return annotation
             ? annotation.query
             : null
+
+    }, [item.answer?.annotations, item?.answer?.annotations?.length])
+
+    const keywords: Array<string> = useMemo<Array<string>>(() => {
+
+        const keywords: Array<string> = []
+        if (!item?.answer?.annotations) return keywords
+        const annotations = item.answer.annotations as Array<DataStreamMessage>
+        const keywordsAnnotation = annotations.find((annotation: DataStreamMessage) => annotation.type === 'extractedKeywords')
+        if (keywordsAnnotation) keywords.push(...keywordsAnnotation.keywords)
+        return keywords
 
     }, [item.answer?.annotations, item?.answer?.annotations?.length])
 
@@ -119,18 +138,35 @@ export function QuestionBlock({item}: QuestionBlockProps) {
             <CollapsibleContent className={'flex flex-col gap-y-2'}>
 
                 {/*    Section: rewritten query*/}
-                <section id={'query'} className={'pt-2 pb-0 w-full'}>
+                <section id={'query-details'} className={'flex flex-col gap-y-2 pt-2 pb-0 w-full'}>
                     {
                         rewrittenQuery
                             ? (
-                                <Badge variant={'secondary'} className={'focus:ring-0'}>
+                                <Badge variant={'secondary'} className={'focus:ring-0 w-fit'}>
                                     <MagnifyingGlassIcon className={'size-4'}/>
                                     <span className={'ml-1'}>{rewrittenQuery}</span>
                                 </Badge>
                             )
                             : (
-                                <RewrittenQueryLoadingBadge/>
+                                <LoadingBadge className={'w-[250px]'}>
+                                    <MagnifyingGlassIcon className={'size-4 stroke-white'}/>
+                                </LoadingBadge>
                             )
+                    }
+                    {
+                        keywords.length
+                            ? (
+                                <Badge variant={'secondary'} className={'focus:ring-0 w-fit'}>
+                                    <KeySquareIcon className={'size-4'}/>
+                                    <span className={'ml-1'}>{keywords.join(', ')}</span>
+                                </Badge>
+                            )
+                            : (
+                                <LoadingBadge className={'w-[250px]'}>
+                                    <KeySquareIcon className={'size-4 stroke-white'}/>
+                                </LoadingBadge>
+                            )
+
                     }
 
                 </section>
