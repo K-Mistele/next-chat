@@ -26,11 +26,6 @@ export function Footer() {
                        target={'_blank'}>
                         GitHub
                     </a>
-                    &nbsp;//&nbsp;
-                    <a href={'https://constellate.ai?utm_source=next_chat'} target={'_blank'}
-                       className={'underline cursor-pointer text-blue-500'}>
-                        constellate.ai
-                    </a>
 
                 </div>
             </footer>
