@@ -32,25 +32,6 @@ export interface QuestionBlockProps {
     item: ConversationItem
 }
 
-const mockMessages = [
-    'Hello! How can I assist you today? If you have any questions or need information on a specific topic, feel free to ask!'
-]
-
-const mockRelated = [
-    'What are the key differences between the two?',
-    'Can you explain more simply?',
-    'Can you help me configure tailwind?'
-]
-
-const mockImageUrls: Array<{ url: string, alt: string }> = [
-    {url: '/next-docs/next-conditional-route.png', alt: 'Conditional routes diagram'},
-    {url: '/next-docs/next-intercepting-photo.png', alt: 'Intercepting routes folder structure'},
-    {url: '/next-docs/next-intercepting-routes.png', alt: 'Intercepting routes soft navigation'},
-    {url: '/next-docs/next-interception.png', alt: 'Intercepting routes modal example'},
-    {url: '/next-docs/next-parallel-routes.png', alt: 'Parallel routes diagram'},
-    {url: '/next-docs/next-tab-groups.png', alt: 'Tab groups example'}
-]
-
 const mockSources: Array<Source> = [
     {
         text: 'You intentionally cannot access the raw request object. However, you can access `headers` and `cookies` through server-only functions. You can also set cookies.',
@@ -97,7 +78,6 @@ export function QuestionBlock({item}: QuestionBlockProps) {
 
     const [isOpen, setIsOpen] = useState<boolean>(true)
     const [sourcesIsOpen, setSourcesIsOpen] = useState<boolean>(true)
-    const imagesMockPromise = useMemo(() => Promise.resolve(mockImageUrls), [])
     const sourcesMockPromise = useMemo(() => Promise.resolve(mockSources), [])
 
 

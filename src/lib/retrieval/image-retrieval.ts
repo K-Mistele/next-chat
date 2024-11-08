@@ -2,7 +2,7 @@
 
 import {CohereClient} from 'cohere-ai'
 import {db} from '@/db'
-import {sql} from 'drizzle-orm'
+import {desc, sql} from 'drizzle-orm'
 import {images, type Image} from '@/db/schema'
 import {l2Distance, SQL} from 'drizzle-orm'
 import logger from '@/lib/logger'
@@ -17,7 +17,7 @@ const cohere = new CohereClient({
  * NOTE that this does not seem to be very effective due to the short length; keyword search probably performs better
  * @param query
  */
-export async function semanticSearchForImages(query: string): Promise<Array<Image & { distance: number }>> {
+export async function semanticSearchForImages(query: string, limit: number): Promise<Array<Image & { distance: number }>> {
 
     // TODO similarity search
     logger.verbose(`Semantic searching for images with alt text matching query: "${query}"`)
@@ -40,8 +40,8 @@ export async function semanticSearchForImages(query: string): Promise<Array<Imag
         distance: l2Distance(images.embedding, queryEmbedding) as SQL<number>
     })
         .from(images)
-        .orderBy(l2Distance(images.embedding, queryEmbedding))
-        .limit(16)
+        .orderBy( t=> desc(t.distance))
+        .limit(limit)
 
     logger.verbose(
         "Image semantic search finished:",
@@ -56,22 +56,34 @@ export async function semanticSearchForImages(query: string): Promise<Array<Imag
  * 1. Look for
  * @param keyPhrases
  */
-export async function keywordSearchForImages(keyPhrases: Array<string>): Promise<Array<Image>> {
+export async function keywordSearchForImages(keyPhrases: Array<string>, count: number): Promise<Array<Omit<Image, 'embedding'>>> {
     // TODO keyword search
-    if (!keyPhrases.length) return [] satisfies  Array<Image>
+    if (!keyPhrases.length) return [] satisfies Array<Image>
 
     logger.verbose(`Performing "strict" search for keywords & phrases:`, keyPhrases)
-    const results = await findExactMatches(keyPhrases, images, images.alt, 8)
+    const results = await findExactMatches(keyPhrases, images, images.alt, count)
+    logger.debug(`Keyword search returned ${results.length} / ${count} results`)
 
-
-    return [] satisfies Array<Image>
+    return results
 }
 
-export async function findImages(query: string, keywords: Array<string>): Promise<Array<Image>> {
+export async function findImages(query: string, keywords: Array<string>, count: number=8): Promise<Array<Omit<Image, 'embedding'>>> {
 
     logger.info(`Searching for images for query ${query}`)
 
-    const results = await keywordSearchForImages(keywords)
-    return results
+    const [semanticSearchResult, keywordSearchResult] = await Promise.allSettled([
+        semanticSearchForImages(query, count),
+        keywordSearchForImages(keywords, count)
+    ])
 
+    const results: Array<Omit<Image, 'embedding'>> = []
+    if (keywordSearchResult.status === 'fulfilled' && keywordSearchResult.value.length) {
+        results.push(...keywordSearchResult.value)
+    }
+
+    if (results.length < count && semanticSearchResult.status === 'fulfilled' && semanticSearchResult.value.length) {
+        results.push(...semanticSearchResult.value)
+    }
+
+    return results.slice(0, 8)
 }

@@ -1,16 +1,16 @@
 import {db} from '@/db'
-import {sql, getTableColumns, SQL} from 'drizzle-orm'
+import {sql, getTableColumns, SQL, desc} from 'drizzle-orm'
 import {images, chunks, Chunk, Image} from '@/db/schema'
 import logger from '@/lib/logger'
 
 /**
  * Properties for Full-text ranking
- * @property tsRank - float representing the frequency of search terms in the document
- * @property tsRankCd - float representing proximimity of query terms in the document
+ * @property frequencyRank - float representing the frequency of search terms in the document
+ * @property proximityRank - float representing proximimity of query terms in the document
  */
 export interface RankedFullTextSearchResult {
-    tsRank: number
-    tsRankCd: number
+    frequencyRank: number
+    proximityRank: number
 }
 
 /**
@@ -20,15 +20,15 @@ export interface RankedFullTextSearchResult {
  * @param column
  * @param limit
  */
-export async function findExactMatches(keyWordsAndPhrases: Array<string>, table: typeof images, column: typeof images.alt, limit: number): Promise<Array<Omit<Image, 'embedding'>>>;
-export async function findExactMatches(keyWordsAndPhrases: Array<string>, table: typeof chunks, column: typeof chunks.originalContent, limit: number): Promise<Array<Omit<Chunk, 'embedding'>>>;
-export async function findExactMatches(keyWordsAndPhrases: Array<string>, table: typeof chunks, column: typeof chunks.contextualContent, limit: number): Promise<Array<Omit<Chunk, 'embedding'>>>;
+export async function findExactMatches(keyWordsAndPhrases: Array<string>, table: typeof images, column: typeof images.alt, limit: number): Promise<Array<Omit<Image & RankedFullTextSearchResult, 'embedding'>>>;
+export async function findExactMatches(keyWordsAndPhrases: Array<string>, table: typeof chunks, column: typeof chunks.originalContent, limit: number): Promise<Array<Omit<Chunk & RankedFullTextSearchResult, 'embedding'>>>;
+export async function findExactMatches(keyWordsAndPhrases: Array<string>, table: typeof chunks, column: typeof chunks.contextualContent, limit: number): Promise<Array<Omit<Chunk & RankedFullTextSearchResult, 'embedding'>>>;
 export async function findExactMatches(
     keyWordsAndPhrases: Array<string>,
     table: typeof images | typeof chunks,
     column: typeof images.alt | typeof chunks.originalContent | typeof chunks.contextualContent,
-    limit: number=50
-): Promise<Array<Omit<Image, 'embedding'>> | Array<Omit<Chunk, 'embedding'>>> {
+    limit: number = 50
+): Promise<Array<Omit<Image & RankedFullTextSearchResult, 'embedding'>> | Array<Omit<Chunk & RankedFullTextSearchResult, 'embedding'>>> {
 
     logger.verbose(`building query for keyword search for`, keyWordsAndPhrases)
     // Separate into single-word keywords and multi-word "keyphrases"
@@ -38,6 +38,7 @@ export async function findExactMatches(
     const target = sql`to_tsvector('english', ${column})`
     let search: SQL
 
+    // Tricky to handle adding arbitrary unions of tsquery vectors to gether
     if (keyPhrases.length && keyWords.length) {
         logger.debug(`processing keywords and keyphrases`)
         const chunks: SQL[] = [
@@ -67,15 +68,40 @@ export async function findExactMatches(
 
     }
 
+    // Assemble where clause
     const whereClause: SQL = sql.join([target, search], sql.raw(` @@ `))
+    // Assemble rank clause based on frequency of terms in document
+    const frequencyRankClause: SQL = sql.join([
+        sql.raw(`ts_rank(`),
+        sql`to_tsvector('english', ${column})`,
+        sql.raw(`, `),
+        search,
+        sql.raw(`)`)
+    ])
+    // Assemble rank clause based on proximity of terms in document
+    const proximityRankClause: SQL = sql.join([
+        sql.raw(`ts_rank_cd(`),
+        sql`to_tsvector('english', ${column})`,
+        sql.raw(`, `),
+        search,
+        sql.raw(`)`)
+    ])
 
-    const {embedding, ...columns} = getTableColumns(table)
-    const query = db.select(columns)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const {embedding, ...columns} = getTableColumns(table) // This line removes the "embedding" property since it's big
+    const query = db
+        .select({
+            ...columns,
+            frequencyRank: frequencyRankClause.as('frequency_rank'),
+            proximityRank: proximityRankClause.as('proximity_rank')
+        })
         .from(table)
         .where(whereClause)
+        .orderBy(t => desc(t.frequencyRank))
         .limit(limit)
+    logger.debug(`query: `, query.toSQL())
     logger.debug(`results:`, await query)
-    return query
+    return query as Promise<Array<Omit<Image & RankedFullTextSearchResult, 'embedding'>> | Array<Omit<Chunk & RankedFullTextSearchResult, 'embedding'>>>
 }
 
 
