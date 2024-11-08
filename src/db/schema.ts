@@ -27,23 +27,26 @@ export const chunks = pgTable('chunks', {
         documentId: text('document_path').notNull().references(() => documents.path, {onDelete: 'cascade'}),
         chunkIndex: integer('chunk_index').notNull(),
     },
-    (table) => ({
-        embeddingIndex: index('chunks_embedding_index').using('hnsw', table.embedding.op('vector_cosine_ops')),
-        tsVectorIndex: index('chunks_tsvector_index').using('gin', sql`to_tsvector('english', ${table.contextualContent})`)
-    })
+    (table) => [
+        index('chunks_embedding_index').using('hnsw', table.embedding.op('vector_cosine_ops')),
+        index('chunks_l2_distance_index').using('hnsw', table.embedding.op('vector_l2_ops')),
+        index('chunks_contextual_content_tsvector_index').using('gin', sql`to_tsvector('english', ${table.contextualContent})`),
+    ]
 )
 
 // Images for referencing items in storage
 export const images = pgTable('images', {
         url: text('url').primaryKey(),
         alt: text('alt_text'),
+        //contextualContent: text('contextual_content'),
         embedding: vector('embedding', {dimensions: 1024}).notNull(),
         documentPath: text('document_path').notNull().references(() => documents.path, {onDelete: 'cascade'}),
     },
-    (table) => ({
-        embeddingIndex: index('images_embedding_index').using('hnsw', table.embedding.op('vector_cosine_ops')),
-        tsVectorIndex: index('images_tsvector_index').using('gin', sql`to_tsvector('english', ${table.alt})`)
-    })
+    (table) => [
+        index('images_embedding_index').using('hnsw', table.embedding.op('vector_cosine_ops')),
+        index('images_l2_distance_index').using('hnsw', table.embedding.op('vector_l2_ops')),
+        index('images_tsvector_index').using('gin', sql`to_tsvector('english', ${table.alt})`)
+    ]
 )
 
 export type Image = typeof images.$inferSelect

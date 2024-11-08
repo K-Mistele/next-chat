@@ -1,14 +1,23 @@
+// Retrieval: https://www.postgresql.org/docs/17/functions-textsearch.html
+
 import {CohereClient} from 'cohere-ai'
 import {db} from '@/db'
+import {sql} from 'drizzle-orm'
 import {images, type Image} from '@/db/schema'
-import {l2Distance} from 'drizzle-orm'
+import {l2Distance, SQL} from 'drizzle-orm'
 import logger from '@/lib/logger'
+import {findExactMatches} from '@/lib/retrieval/full-text-search'
 
 const cohere = new CohereClient({
     token: process.env.COHERE_API_KEY
 })
 
-export async function semanticSearchForImages(query: string): Promise<Array<Image>> {
+/**
+ * Use vector embeddings search to search for images against their alt text
+ * NOTE that this does not seem to be very effective due to the short length; keyword search probably performs better
+ * @param query
+ */
+export async function semanticSearchForImages(query: string): Promise<Array<Image & { distance: number }>> {
 
     // TODO similarity search
     logger.verbose(`Semantic searching for images with alt text matching query: "${query}"`)
@@ -28,20 +37,32 @@ export async function semanticSearchForImages(query: string): Promise<Array<Imag
         alt: images.alt,
         documentPath: images.documentPath,
         embedding: images.embedding,
-        distance: l2Distance(images.embedding, queryEmbedding)
+        distance: l2Distance(images.embedding, queryEmbedding) as SQL<number>
     })
         .from(images)
         .orderBy(l2Distance(images.embedding, queryEmbedding))
         .limit(16)
 
-    logger.verbose("Image semantic search finished")
+    logger.verbose(
+        "Image semantic search finished:",
+        results.map(img => ({url: img.url, alt: img.alt, distance: img.distance}))
+    )
     return results
 
 }
 
-export async function keywordSearchForImages(keywords: Array<string>): Promise<Array<Image>> {
+/**
+ * Perform keyword/phrase search to find relevant images; does a waterfall:
+ * 1. Look for
+ * @param keyPhrases
+ */
+export async function keywordSearchForImages(keyPhrases: Array<string>): Promise<Array<Image>> {
     // TODO keyword search
-    if (!keywords.length) return [] satisfies  Array<Image>
+    if (!keyPhrases.length) return [] satisfies  Array<Image>
+
+    logger.verbose(`Performing "strict" search for keywords & phrases:`, keyPhrases)
+    const results = await findExactMatches(keyPhrases, images, images.alt, 8)
+
 
     return [] satisfies Array<Image>
 }
@@ -50,37 +71,7 @@ export async function findImages(query: string, keywords: Array<string>): Promis
 
     logger.info(`Searching for images for query ${query}`)
 
-    const results  = await Promise.allSettled([
-        semanticSearchForImages(query),
-        keywordSearchForImages(keywords)
-    ])
-
-    const searchResults = results.reduce((
-        accumulator: Array<Image>,
-        current: PromiseSettledResult<Array<Image>>,
-        idx: number
-    ) => {
-        if (current.status === 'fulfilled') {
-            logger.debug(`Got ${current.value.length} image search results`)
-            accumulator.push(...current.value)
-        }
-        else {
-            logger.error(`Image search failed with error:`, current.reason)
-        }
-        return accumulator
-    }, [] satisfies Array<Image>)
-
-    logger.info(`Found images:`, searchResults.map(result => ({
-        url: result.url,
-        alt: result.alt,
-        documentPath: result.documentPath,
-        // @ts-expect-error - it's there
-        distance: result.distance
-    })))
-    // TODO de-duplicate
-
-    // TODO re-rank - e.g. re-ranker or reciprocal rank fusion
-
-    return searchResults.slice(0, 8)
+    const results = await keywordSearchForImages(keywords)
+    return results
 
 }

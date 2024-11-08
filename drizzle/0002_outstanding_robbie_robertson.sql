@@ -1,0 +1,2 @@
+CREATE INDEX IF NOT EXISTS "chunks_l2_distance_index" ON "chunks" USING hnsw ("embedding" vector_l2_ops);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "images_l2_distance_index" ON "images" USING hnsw ("embedding" vector_l2_ops);
