@@ -1,5 +1,5 @@
 import {generateObject} from 'ai'
-import {model} from './config'
+import {defaultAgentModel} from './config'
 import {z} from 'zod'
 import logger from '@/lib/logger'
 
@@ -7,7 +7,7 @@ export async function rewriteQuery(query: string): Promise<string> {
 
     logger.info(`Rewriting query: "${query}"`)
     const result = await generateObject({
-        model,
+        model: defaultAgentModel,
         prompt: prompt(query),
         temperature: 0.7,
         schema: z.object({

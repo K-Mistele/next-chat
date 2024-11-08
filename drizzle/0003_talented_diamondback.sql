@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS "chunks_tsvector_index";--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "chunks_contextual_content_tsvector_index" ON "chunks" USING gin (to_tsvector('english', "contextual_content"));

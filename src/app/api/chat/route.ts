@@ -6,8 +6,9 @@ import {rewriteQuery} from '@/lib/ai/agents/query-rewriter'
 import {getMessageTextContent} from '@/lib/ai/utils'
 import {extractKeywords} from '@/lib/ai/agents/keyword-extractor'
 import type {DataStreamMessage} from '@/lib/ai/types'
-import {Image} from '@/db/schema'
+import {Chunk, Image} from '@/db/schema'
 import {findImages} from '@/lib/retrieval/image-retrieval'
+import {findChunks} from '@/lib/retrieval/chunk-retrieval'
 
 export async function POST(request: Request) {
 
@@ -53,7 +54,8 @@ export async function POST(request: Request) {
     })
 
     // Promise to retrieve images; sends the data when it has been resolved
-    const images = new Promise<Array<Image>>((resolve) => {
+    // Depends on rewritten query and keywords
+    const images = new Promise<Array<Omit<Image, 'embedding'>>>((resolve) => {
         Promise.all([rewrittenQuery, keywords])
             .then(([query, keywords]: [string, Array<string> | null]) => {
                 findImages(query, keywords || [])
@@ -76,6 +78,26 @@ export async function POST(request: Request) {
             })
     })
 
+    const chunks = new Promise<Array<Omit<Chunk, 'embedding'>>>((resolve) => {
+        Promise.all([rewrittenQuery, keywords])
+            .then(([rewrittenQuery, keywords]: [string, Array<string> | null]) => {
+                findChunks(rewrittenQuery, keywords || [])
+                    .then((chunks: Array<Omit<Chunk, 'embedding'>>)=> {
+                        data.appendMessageAnnotation({type: 'sources', chunks} satisfies DataStreamMessage)
+                        resolve(chunks)
+                    })
+                    .catch((err: any) => {
+                        logger.error(`Failed to retrieve chunks:`, err)
+                        data.appendMessageAnnotation({type: 'sources', chunks: []} satisfies  DataStreamMessage)
+                        resolve([])
+                    })
+            })
+            .catch((err: any) => {
+                logger.error(`Unable to retrieve query and chunks for image retrieval`, err)
+                data.appendMessageAnnotation({type: 'sources', chunks: []} satisfies  DataStreamMessage)
+            })
+    })
+
     // call data.append({...}) to add data to the stream
     // call data.appendMessageAnnotation to add to a message
     const result = await streamText({
@@ -89,6 +111,8 @@ export async function POST(request: Request) {
             data.close()
         }
     })
+
+    // TODO do NOT call data.close until promises have settled for image search, chunk search, agents, and follow-up suggestions
 
     logger.debug(`Returning stream...`)
     return result.toDataStreamResponse({data})

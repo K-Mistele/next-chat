@@ -2,7 +2,7 @@
 
 import {CohereClient} from 'cohere-ai'
 import {db} from '@/db'
-import {desc, sql} from 'drizzle-orm'
+import {asc, desc, sql} from 'drizzle-orm'
 import {images, type Image} from '@/db/schema'
 import {l2Distance, SQL} from 'drizzle-orm'
 import logger from '@/lib/logger'
@@ -17,9 +17,11 @@ const cohere = new CohereClient({
  * NOTE that this does not seem to be very effective due to the short length; keyword search probably performs better
  * @param query
  */
-export async function semanticSearchForImages(query: string, limit: number): Promise<Array<Image & { distance: number }>> {
+export async function semanticSearchForImages(
+    query: string,
+    limit: number
+): Promise<Array<Image & { distance: number }>> {
 
-    // TODO similarity search
     logger.verbose(`Semantic searching for images with alt text matching query: "${query}"`)
     const embedResult = await cohere.v2.embed({
         texts: [query],
@@ -40,10 +42,10 @@ export async function semanticSearchForImages(query: string, limit: number): Pro
         distance: l2Distance(images.embedding, queryEmbedding) as SQL<number>
     })
         .from(images)
-        .orderBy( t=> desc(t.distance))
+        .orderBy( t=> asc(t.distance))
         .limit(limit)
 
-    logger.verbose(
+    logger.silly(
         "Image semantic search finished:",
         results.map(img => ({url: img.url, alt: img.alt, distance: img.distance}))
     )
@@ -60,7 +62,7 @@ export async function keywordSearchForImages(keyPhrases: Array<string>, count: n
     // TODO keyword search
     if (!keyPhrases.length) return [] satisfies Array<Image>
 
-    logger.verbose(`Performing "strict" search for keywords & phrases:`, keyPhrases)
+    logger.debug(`Performing "strict" search for keywords & phrases:`, keyPhrases)
     const results = await findExactMatches(keyPhrases, images, images.alt, count)
     logger.debug(`Keyword search returned ${results.length} / ${count} results`)
 

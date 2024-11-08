@@ -1,12 +1,12 @@
 import logger from '@/lib/logger'
 import {generateObject} from 'ai'
-import {model} from '@/lib/ai/agents/config'
+import {defaultAgentModel} from '@/lib/ai/agents/config'
 import {z} from 'zod'
 
 export async function extractKeywords(query: string): Promise<Array<string>> {
-    logger.info(`Extracting keywords from query: "${query}"`)
+    logger.debug(`Extracting keywords from query: "${query}"`)
     const result = await generateObject({
-        model,
+        model: defaultAgentModel,
         prompt: prompt(query),
         temperature: 0.7,
         schema: z.object({

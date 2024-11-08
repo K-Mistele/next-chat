@@ -2,6 +2,7 @@ import {db} from '@/db'
 import {sql, getTableColumns, SQL, desc} from 'drizzle-orm'
 import {images, chunks, Chunk, Image} from '@/db/schema'
 import logger from '@/lib/logger'
+import {performance} from 'node:perf_hooks'
 
 /**
  * Properties for Full-text ranking
@@ -30,7 +31,6 @@ export async function findExactMatches(
     limit: number = 50
 ): Promise<Array<Omit<Image & RankedFullTextSearchResult, 'embedding'>> | Array<Omit<Chunk & RankedFullTextSearchResult, 'embedding'>>> {
 
-    logger.verbose(`building query for keyword search for`, keyWordsAndPhrases)
     // Separate into single-word keywords and multi-word "keyphrases"
     const keyPhrases = keyWordsAndPhrases.filter(keyPhrase => keyPhrase.includes(' '))
     const keyWords = keyWordsAndPhrases.filter(keyPhrase => !keyPhrase.includes(' '))
@@ -89,6 +89,7 @@ export async function findExactMatches(
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const {embedding, ...columns} = getTableColumns(table) // This line removes the "embedding" property since it's big
+    const start = performance.now()
     const query = db
         .select({
             ...columns,
@@ -99,9 +100,13 @@ export async function findExactMatches(
         .where(whereClause)
         .orderBy(t => desc(t.frequencyRank))
         .limit(limit)
-    logger.debug(`query: `, query.toSQL())
-    logger.debug(`results:`, await query)
-    return query as Promise<Array<Omit<Image & RankedFullTextSearchResult, 'embedding'>> | Array<Omit<Chunk & RankedFullTextSearchResult, 'embedding'>>>
+    const result = await query
+    const end = performance.now()
+    logger.debug(`Full-text search finished in ${Math.floor(end-start)} ms`)
+    logger.silly(`query: `, query.toSQL())
+    logger.silly(`full-text search results:`, result)
+
+    return result as Array<Omit<Image & RankedFullTextSearchResult, 'embedding'>> | Array<Omit<Chunk & RankedFullTextSearchResult, 'embedding'>>
 }
 
 

@@ -1,3 +1,5 @@
+import {Chunk} from '@/db/schema'
+
 export type RewrittenQueryMessage = {
     type: 'rewrittenQuery',
     query: string
@@ -16,4 +18,9 @@ export type RelatedImagesMessage = {
     }>
 }
 
-export type DataStreamMessage = RewrittenQueryMessage | ExtractedKeywordsMessage | RelatedImagesMessage
+export type SourcesMessage = {
+    type: 'sources', 
+    chunks: Array<Omit<Chunk, 'embedding'>>
+}
+
+export type DataStreamMessage = RewrittenQueryMessage | ExtractedKeywordsMessage | RelatedImagesMessage | SourcesMessage
