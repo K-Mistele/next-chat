@@ -5,7 +5,7 @@ import {generateId} from 'ai'
 import {useEffect, use} from 'react'
 import type {JSONValue, Message} from 'ai'
 import {useMemo} from 'react'
-import {QuestionBlock} from '@/components/question-block'
+import {AnswerBlock} from '@/components/answer-block'
 import {ChatScrollAnchor} from '@/components/chat-scroll-anchor'
 
 export interface ConversationPanelProps {
@@ -42,10 +42,21 @@ export function ConversationPanel({id, query, existingMessages}: ConversationPan
 
                     if (message.role === 'user') {
                         return (
-                            <QuestionBlock question={message} answer={messages[idx+1] || null} key={idx} data={data}/>
+                            <div className={'w-full'} key={idx}>
+                                <div className={'flex flex-row '}>
+                                    <div
+                                        className={'w-full text-xl flex flex-row items-center justify-start break-words line-clamp-2'}>
+                                        {message.content}
+                                    </div>
+                                </div>
+                            </div>
                         )
                     }
-                    else return undefined
+                    else if (message.role === 'assistant') {
+                        return (
+                            <AnswerBlock answer={message} key={idx} data={data}/>
+                        )
+                    }
                 })}
             </div>
             <ChatScrollAnchor/>

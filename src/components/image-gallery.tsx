@@ -16,7 +16,7 @@ export interface ImageGalleryProps {
 
 export const ImageGallery = memo(function ImageGallery({images}: ImageGalleryProps) {
 
-    console.log(`ImageGallery re-rendering`)
+    console.log(`ImageGallery re-rendering with data`, images)
     const [showMoreImages, setShowMoreImages] = useState<boolean>(false)
 
     const selectedImages = useMemo(() => {

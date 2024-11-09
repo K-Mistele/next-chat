@@ -20,17 +20,15 @@ import {RewrittenQueryBadge} from '@/components/rewritten-query-badge'
 import {KeywordsBadge} from '@/components/keywords-badge'
 import {QuerySourcesList} from '@/components/query-sources-list'
 
-export interface QuestionBlockProps {
-    question: Message,
+export interface AnswerBlockProps {
     answer: Message | null
     data: Array<JSONValue> | undefined
 
 }
 
 // Memoize the component!
-export const QuestionBlock = memo(
-    function QuestionBlock({question, answer, data}: QuestionBlockProps) {
-        const [isOpen, setIsOpen] = useState<boolean>(true)
+export const AnswerBlock = memo(
+    function AnswerBlock({answer, data}: AnswerBlockProps) {
         const [sourcesIsOpen, setSourcesIsOpen] = useState<boolean>(true)
 
         const [finishSignalReceived, setFinishedSignalReceived] = useState<boolean>(false)
@@ -97,11 +95,12 @@ export const QuestionBlock = memo(
 
             console.log(`imagesData useMemo running`)
             let images = null;
-            if (answer?.annotations) return images
+            if (!answer?.annotations) return images
             const annotations = answer?.annotations as Array<StreamedMessageAnnotationMessage>
-            if (!annotations) return null
+            if (!annotations || !annotations.length) return null
             const imagesAnnotation = annotations.find((annotation: StreamedMessageAnnotationMessage) => annotation.type === 'relatedImages')
             if (imagesAnnotation) images = imagesAnnotation.imageData
+            console.log(`Got images:`, images)
             return images;
 
         }, [answer?.annotations?.length])
@@ -122,19 +121,8 @@ export const QuestionBlock = memo(
         }, [answer?.annotations?.length])
 
         return (
-            <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-                <CollapsibleTrigger asChild className={'w-full'}>
-                    <div className={'flex flex-row '}>
-                        <div
-                            className={'w-full text-xl flex flex-row items-center justify-start break-words line-clamp-2'}>
-                            {question.content}
-                        </div>
-                        <Button variant="ghost" size="sm" className="">
-                            <ChevronsUpDown className="h-4 w-4"/>
-                        </Button>
-                    </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent className={'flex flex-col gap-y-2'}>
+            <>
+                <div className={'flex flex-col gap-y-2'}>
 
                     {/* Section: rewritten query*/}
                     <section id={'query-details'} className={'flex flex-col gap-y-2 pt-2 pb-0 w-full'}>
@@ -193,8 +181,7 @@ export const QuestionBlock = memo(
                     </div>
 
 
-                </CollapsibleContent>
-            </Collapsible>
+                </div>
+            </>
         )
-
     })

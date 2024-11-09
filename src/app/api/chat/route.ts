@@ -67,6 +67,7 @@ export async function POST(request: Request) {
                             alt: img.alt || ''
                         }))
                         data.appendMessageAnnotation({type: 'relatedImages', imageData} satisfies StreamedMessageAnnotationMessage)
+                        logger.info(`Images streamed to client:`, imageData)
                         resolve(images)
                     })
                     .catch((err: any) => {
