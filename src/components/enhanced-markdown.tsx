@@ -20,9 +20,11 @@ const MemoizedReactMarkdown: FC<Options> = memo(
 export interface EnhancedMarkdownProps {
     children: string | null | undefined
     className?: string
+    name?: string
 }
 
-export function EnhancedMarkdown({children, className}: EnhancedMarkdownProps) {
+export function EnhancedMarkdown({children, className, name}: EnhancedMarkdownProps) {
+    //console.log(`Enhancedmarkdown (${name}) re-rendering`)
     return (
         <MemoizedReactMarkdown
 
@@ -63,10 +65,10 @@ export function EnhancedMarkdown({children, className}: EnhancedMarkdownProps) {
                     // for code block
                     return (
                         <CodeBlock
-                            key={Math.random()}
+                            key={((children|| '' )as string).slice(0, 10)}
                             language={(match && match[1]
                             ) || ''}
-                            value={String(children).replace(/\n$/, '')}
+                            value={((children || '') as string).replace(/\n$/, '')}
                             className={'overflow-y-scroll'}
                             {...props}
                         />

@@ -1,5 +1,5 @@
 'use client'
-import {use, useMemo, useState} from 'react'
+import {use, useMemo, useState, memo} from 'react'
 import Image from 'next/image'
 import {Tooltip} from '@radix-ui/react-tooltip'
 import {TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
@@ -14,8 +14,9 @@ export interface ImageGalleryProps {
     images: Array<ImageInfo>
 }
 
-export function ImageGallery({images}: ImageGalleryProps) {
+export const ImageGallery = memo(function ImageGallery({images}: ImageGalleryProps) {
 
+    console.log(`ImageGallery re-rendering`)
     const [showMoreImages, setShowMoreImages] = useState<boolean>(false)
 
     const selectedImages = useMemo(() => {
@@ -61,4 +62,6 @@ export function ImageGallery({images}: ImageGalleryProps) {
             }
         </div>
     )
-}
+},
+    (prevProps, nextProps) => prevProps.images.length === nextProps.images.length
+)

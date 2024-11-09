@@ -1,4 +1,3 @@
-import {Chunk} from '@/db/schema'
 
 export type RewrittenQueryMessage = {
     type: 'rewrittenQuery',
@@ -18,9 +17,24 @@ export type RelatedImagesMessage = {
     }>
 }
 
-export type SourcesMessage = {
-    type: 'sources', 
-    chunks: Array<Omit<Chunk, 'embedding'>>
+export type Source = {
+    text: string | null
+    title: string | null
+    icon: string | null
+    link: string | null
 }
 
-export type DataStreamMessage = RewrittenQueryMessage | ExtractedKeywordsMessage | RelatedImagesMessage | SourcesMessage
+export type SourcesMessage = {
+    type: 'sources', 
+    sources: Array<Source>
+}
+
+export type StreamedMessageAnnotationMessage = RewrittenQueryMessage | ExtractedKeywordsMessage | RelatedImagesMessage | SourcesMessage
+
+export type StatusUpdate = {
+    type: 'statusUpdate',
+    status: 'optimizing' | 'researching' | 'generating' | 'done'
+}
+
+export type StreamedDataMessage = StatusUpdate
+

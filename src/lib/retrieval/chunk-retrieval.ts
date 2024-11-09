@@ -21,6 +21,7 @@ export async function keywordSearchForChunks(
     const results = await findExactMatches(keyPhrases, chunks, chunks.contextualContent, count)
     logger.debug(`Keyword search returned ${results.length} chunks out of ${count} limit`)
     return results
+
 }
 
 
@@ -201,7 +202,7 @@ async function rerankRetrievedChunks(
     // Results contain the index in the source array, and the relevance score
     const topNDocuments = rerankResult.results.map(
         ({index, relevanceScore}: { index: number, relevanceScore: number }) => {
-            logger.debug(`Relevant: ${relevanceScore}, document: `, chunks[index])
+            logger.silly(`Relevant: ${relevanceScore}, document: `, chunks[index])
             return chunks[index]
         })
     const end = performance.now()
