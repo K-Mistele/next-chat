@@ -27,7 +27,8 @@ export function ConversationPanel({id, query, existingMessages}: ConversationPan
     } = useChat({
         id: id,
         initialMessages: initialMessages,
-        api: `/api/chat`
+        api: `/api/chat`,
+        experimental_throttle: 100 // prevent too many component updates, at 50tkps you're at 20ms
     })
 
     //  Set query to first user message
@@ -42,10 +43,10 @@ export function ConversationPanel({id, query, existingMessages}: ConversationPan
 
                     if (message.role === 'user') {
                         return (
-                            <div className={'w-full'} key={idx}>
+                            <div className={'w-full mt-6'} key={idx}>
                                 <div className={'flex flex-row '}>
                                     <div
-                                        className={'w-full text-xl flex flex-row items-center justify-start break-words line-clamp-2'}>
+                                        className={'w-full text-2xl flex flex-row items-center justify-start break-words line-clamp-2'}>
                                         {message.content}
                                     </div>
                                 </div>
@@ -59,7 +60,7 @@ export function ConversationPanel({id, query, existingMessages}: ConversationPan
                     }
                 })}
             </div>
-            <ChatScrollAnchor/>
+            {/*<ChatScrollAnchor/>*/}
 
             {/* TODO Chat window */}
         </div>

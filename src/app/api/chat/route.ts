@@ -84,14 +84,19 @@ export async function POST(request: Request) {
     const chunksPromise = new Promise<Array<Omit<Chunk, 'embedding'> & {document: Omit<Document, 'contents'> | null}>>((resolve) => {
         Promise.all([rewrittenQuery, keywords])
             .then(([rewrittenQuery, keywords]: [string, Array<string> | null]) => {
+
+                // Notify the client that we are not waiting on researching
                 data.append({type: 'statusUpdate', status: 'researching'} satisfies StreamedDataMessage)
                 const intermediate = performance.now()
                 findChunks(rewrittenQuery, keywords || [])
                     .then((chunks: Array<Omit<Chunk, 'embedding'> & {document: Omit<Document, 'contents'>|null}>)=> {
                         data.appendMessageAnnotation({
                             type: 'sources',
-                            sources: normalizeChunksWithDocumentsToSources(chunks)
+                            sources: normalizeChunksWithDocumentsToSources(chunks).slice(0, 10) // SHORT
                         } satisfies StreamedMessageAnnotationMessage)
+
+                        // Notify the client we're generating now
+                        data.append({type: 'statusUpdate', status: 'generating'} satisfies  StreamedDataMessage)
                         const end = performance.now()
                         logger.info(`Took ${Math.floor(intermediate-start)} ms from request start to get rewritten query and keywords`)
                         logger.info(`Took ${Math.floor(end - intermediate)} ms from receiving search terms to stream chunks`)
@@ -145,7 +150,7 @@ function normalizeChunksWithDocumentsToSources(
                 if (isNumber(segmentComponents[0])) return segmentComponents.slice(1).join('-')
                 else return segment
             }).join('/')
-            url = `https://next.js.org/docs` + urlPath
+            url = `https://nextjs.org/docs` + urlPath
         }
 
         // AI

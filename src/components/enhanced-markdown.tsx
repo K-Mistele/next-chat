@@ -24,12 +24,12 @@ export interface EnhancedMarkdownProps {
 }
 
 export function EnhancedMarkdown({children, className, name}: EnhancedMarkdownProps) {
-    //console.log(`Enhancedmarkdown (${name}) re-rendering`)
+    if (name) console.log(`Enhancedmarkdown (${name}) re-rendering`)
     return (
         <MemoizedReactMarkdown
 
             className={cn('prose break-words dark:prose-invert prose-p:leading-relaxed prose-pre:p-0', className)}
-            remarkPlugins={[remarkGfm, remarkMath]}
+            //remarkPlugins={[remarkGfm, remarkMath]}
             components={{
                 p({children}) {
                     return <span className='mb-2 last:mb-0'>{children}</span>

@@ -19,6 +19,7 @@ import {QueryStatus} from '@/components/query-status'
 import {RewrittenQueryBadge} from '@/components/rewritten-query-badge'
 import {KeywordsBadge} from '@/components/keywords-badge'
 import {QuerySourcesList} from '@/components/query-sources-list'
+import {useDebouncedValue} from '@/lib/hooks/use-debounced'
 
 export interface AnswerBlockProps {
     answer: Message | null
@@ -32,6 +33,8 @@ export const AnswerBlock = memo(
         const [sourcesIsOpen, setSourcesIsOpen] = useState<boolean>(true)
 
         const [finishSignalReceived, setFinishedSignalReceived] = useState<boolean>(false)
+
+        // Create a single memo for data stream
         const status = useMemo<string | undefined>(() => {
 
             console.log(`status useMemo running`)
@@ -63,62 +66,41 @@ export const AnswerBlock = memo(
 
         }, [data?.length, finishSignalReceived])
 
-        // Extract rewritten query
-        const rewrittenQuery = useMemo<string | null>(() => {
+        // Create a single memo for message annotations
+        const {
+            rewrittenQuery,
+            keywords,
+            imagesData,
+            sources
+        } = useMemo(() => {
+            let rewrittenQuery: string | null = null
+            let keywords: Array<string> = []
+            let imagesData: null | Array<{url: string, alt: string}> = null
+            let sources: Array<Source> | undefined | null = undefined;
 
-            console.log(`rewrittenQuery useMemo running`)
-            if (!answer?.annotations) return null
-            const annotations = answer?.annotations as Array<StreamedMessageAnnotationMessage>
-            if (!annotations) return null
-            const annotation = annotations.find((annotation: StreamedMessageAnnotationMessage) => annotation.type === 'rewrittenQuery')
-            return annotation
-                ? annotation.query
-                : null
-
-        }, [answer?.annotations?.length])
-
-        // Memo for keywords
-        const keywords: Array<string> = useMemo<Array<string>>(() => {
-
-            console.log(`keywords usememo running`)
-            const keywords: Array<string> = []
-            if (!answer?.annotations) return keywords
-            const annotations = answer.annotations as Array<StreamedMessageAnnotationMessage>
-            const keywordsAnnotation = annotations.find((annotation: StreamedMessageAnnotationMessage) => annotation.type === 'extractedKeywords')
-            if (keywordsAnnotation) keywords.push(...keywordsAnnotation.keywords)
-            return keywords
-
-        }, [answer?.annotations?.length])
-
-        // memo for images data
-        const imagesData = useMemo<Array<{ url: string, alt: string }> | null>(() => {
-
-            console.log(`imagesData useMemo running`)
-            let images = null;
-            if (!answer?.annotations) return images
-            const annotations = answer?.annotations as Array<StreamedMessageAnnotationMessage>
-            if (!annotations || !annotations.length) return null
-            const imagesAnnotation = annotations.find((annotation: StreamedMessageAnnotationMessage) => annotation.type === 'relatedImages')
-            if (imagesAnnotation) images = imagesAnnotation.imageData
-            console.log(`Got images:`, images)
-            return images;
-
-        }, [answer?.annotations?.length])
-
-        // memo for sources
-        const sources = useMemo<Array<Source> | undefined | null>(() => {
-
-            console.log(`sources useMemo running`)
-            let chunks: Array<Source> | undefined = undefined;
-            const annotations = answer?.annotations as undefined | Array<StreamedMessageAnnotationMessage>
-            if (annotations) {
-                const sourcesAnnotation = annotations.find((annotation) => annotation.type === 'sources')
-                if (sourcesAnnotation) {
-                    chunks = sourcesAnnotation.sources
-                }
+            if (!answer?.annotations?.length) return {
+                rewrittenQuery,
+                keywords,
+                imagesData,
+                sources
             }
-            return chunks?.slice(0, 10)
+
+            for (const annotation of answer.annotations as Array<StreamedMessageAnnotationMessage>) {
+                if (annotation.type === 'rewrittenQuery') rewrittenQuery = annotation.query
+                if (annotation.type === 'extractedKeywords') keywords = annotation.keywords
+                if (annotation.type === 'relatedImages') imagesData = annotation.imageData
+                if (annotation.type === 'sources') sources = annotation.sources
+            }
+
+            return {
+                rewrittenQuery,
+                keywords,
+                imagesData,
+                sources
+            }
+
         }, [answer?.annotations?.length])
+
 
         return (
             <>
@@ -152,7 +134,7 @@ export const AnswerBlock = memo(
                                 {/* Load the content OR a loading state*/}
                                 {
                                     answer?.content.length
-                                        ? <EnhancedMarkdown name={'answer'}>{answer?.content}</EnhancedMarkdown>
+                                        ? <EnhancedMarkdown name={undefined}>{answer?.content}</EnhancedMarkdown>
                                         : <></>
                                 }
 

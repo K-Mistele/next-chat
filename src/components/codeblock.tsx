@@ -2,7 +2,6 @@
 // @see https://github.com/mckaywrigley/chatbot-ui/blob/main/components/Markdown/CodeBlock.tsx
 
 'use client'
-import {GeistMono} from 'geist/font/mono';
 
 import { FC, memo } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -14,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import {sourceCodeFont} from '@/lib/fonts'
 
 import {cn} from '@/lib/utils'
+import {useDebouncedValue} from '@/lib/hooks/use-debounced'
 
 interface Props {
     language: string
@@ -61,9 +61,10 @@ export const generateRandomString = (length: number, lowercase = false) => {
     return lowercase ? result.toLowerCase() : result
 }
 
+const MemoizedSyntaxHighlighter = memo(SyntaxHighlighter)
+
 const CodeBlock: FC<Props> = memo(({ language, value, className }) => {
 
-    //console.log(`re-rendering codes`)
     const { isCopied, copyToClipboard } = useCopyToClipboard({ timeout: 2000 })
 
     const downloadAsFile = () => {
@@ -99,6 +100,7 @@ const CodeBlock: FC<Props> = memo(({ language, value, className }) => {
         copyToClipboard(value)
     }
 
+    const code = useDebouncedValue(value, 10)
     return (
         <div className={'relative w-full font-sans codeblock bg-zinc-950 rounded-md my-4'}>
 
@@ -128,7 +130,7 @@ const CodeBlock: FC<Props> = memo(({ language, value, className }) => {
             </div>
 
             {/* Body*/}
-            <SyntaxHighlighter
+            <MemoizedSyntaxHighlighter
                 className={className}
                 language={language}
                 style={coldarkDark}
@@ -146,7 +148,6 @@ const CodeBlock: FC<Props> = memo(({ language, value, className }) => {
                     borderBottomLeftRadius: 'calc(var(--radius) - 2px)',
                     borderBottomRightRadius: 'calc(var(--radius) - 2px)',
 
-                    // @ts-expect-error custom tailwaind prop
                     '--tw-border-opacity': 1,
                     ...sourceCodeFont.style
                 }}
@@ -157,8 +158,8 @@ const CodeBlock: FC<Props> = memo(({ language, value, className }) => {
                     }
                 }}
             >
-                {value}
-            </SyntaxHighlighter>
+                {code}
+            </MemoizedSyntaxHighlighter>
         </div>
     )
 }, (prevProps, nextProps) => prevProps.value === nextProps.value && prevProps.className === nextProps.className)

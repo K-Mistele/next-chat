@@ -30,7 +30,7 @@ export const SourcesListCarousel = memo(
                                 )} id={`source-card-${idx}`}>
 
                                     <div className={'flex flex-grow text-xs min-h-0 overflow-scroll p-2'}>
-                                        <EnhancedMarkdown>{source.text}</EnhancedMarkdown>
+                                        <EnhancedMarkdown name={undefined}>{source.text}</EnhancedMarkdown>
                                     </div>
                                     <Link
                                         href={source.link || '#'}
