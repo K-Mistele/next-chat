@@ -12,6 +12,7 @@ import {findChunks} from '@/lib/retrieval/chunk-retrieval'
 
 export async function POST(request: Request) {
 
+    // TODO need to use the data stream protoocl to start streaming before we start generating
     const {messages}: { messages: CoreMessage[] } = await request.json()
     const [lastUserMessage] = messages.filter(message => message.role === "user").slice(-1);
     const userQuery = getMessageTextContent(lastUserMessage)
@@ -151,6 +152,7 @@ function normalizeChunksWithDocumentsToSources(
                 else return segment
             }).join('/')
             url = `https://nextjs.org/docs` + urlPath
+            url = url.replace('.mdx', '')
         }
 
         // AI
