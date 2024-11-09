@@ -5,41 +5,31 @@ import {Button} from '@/components/ui/button'
 import type {JSONValue, Message} from 'ai'
 import {useState, Suspense, useMemo, memo} from 'react'
 import {
-    BookCheckIcon, CheckIcon,
+    BookCheckIcon,
     ChevronsUpDown,
-    ChevronsUpDownIcon,
     ImagesIcon,
-    KeySquareIcon, LoaderCircleIcon,
-    NewspaperIcon
 } from 'lucide-react'
-import {Badge} from '@/components/ui/badge'
-import {MagnifyingGlassIcon} from '@radix-ui/react-icons'
+
 import {ImageGallery} from '@/components/image-gallery'
 import {ImageGalleryLoading} from '@/components/loading/image-gallery-loading'
-import {SourcesListCarousel} from '@/components/sources-list-carousel'
-import {SourcesListLoading} from '@/components/loading/sources-list-loading'
+
 import {EnhancedMarkdown} from '@/components/enhanced-markdown'
 import type {StreamedMessageAnnotationMessage, Source, StreamedDataMessage} from '@/lib/ai/types'
-import {LoadingBadge} from '@/components/loading/loading-badge'
 import {QueryStatus} from '@/components/query-status'
 import {RewrittenQueryBadge} from '@/components/rewritten-query-badge'
 import {KeywordsBadge} from '@/components/keywords-badge'
 import {QuerySourcesList} from '@/components/query-sources-list'
 
-export interface ConversationItem {
-    question: Message
-    answer: Message | null
-}
-
 export interface QuestionBlockProps {
-    item: ConversationItem
+    question: Message,
+    answer: Message | null
     data: Array<JSONValue> | undefined
 
 }
 
 // Memoize the component!
 export const QuestionBlock = memo(
-    function QuestionBlock({item, data}: QuestionBlockProps) {
+    function QuestionBlock({question, answer, data}: QuestionBlockProps) {
         const [isOpen, setIsOpen] = useState<boolean>(true)
         const [sourcesIsOpen, setSourcesIsOpen] = useState<boolean>(true)
 
@@ -79,48 +69,49 @@ export const QuestionBlock = memo(
         const rewrittenQuery = useMemo<string | null>(() => {
 
             console.log(`rewrittenQuery useMemo running`)
-            if (!item?.answer?.annotations) return null
-            const annotations = item.answer.annotations as Array<StreamedMessageAnnotationMessage>
-
+            if (!answer?.annotations) return null
+            const annotations = answer?.annotations as Array<StreamedMessageAnnotationMessage>
+            if (!annotations) return null
             const annotation = annotations.find((annotation: StreamedMessageAnnotationMessage) => annotation.type === 'rewrittenQuery')
             return annotation
                 ? annotation.query
                 : null
 
-        }, [item?.answer?.annotations?.length])
+        }, [answer?.annotations?.length])
 
         // Memo for keywords
         const keywords: Array<string> = useMemo<Array<string>>(() => {
 
             console.log(`keywords usememo running`)
             const keywords: Array<string> = []
-            if (!item?.answer?.annotations) return keywords
-            const annotations = item.answer.annotations as Array<StreamedMessageAnnotationMessage>
+            if (!answer?.annotations) return keywords
+            const annotations = answer.annotations as Array<StreamedMessageAnnotationMessage>
             const keywordsAnnotation = annotations.find((annotation: StreamedMessageAnnotationMessage) => annotation.type === 'extractedKeywords')
             if (keywordsAnnotation) keywords.push(...keywordsAnnotation.keywords)
             return keywords
 
-        }, [item?.answer?.annotations?.length])
+        }, [answer?.annotations?.length])
 
         // memo for images data
         const imagesData = useMemo<Array<{ url: string, alt: string }> | null>(() => {
 
             console.log(`imagesData useMemo running`)
             let images = null;
-            if (!item?.answer?.annotations) return images
-            const annotations = item.answer.annotations as Array<StreamedMessageAnnotationMessage>
+            if (answer?.annotations) return images
+            const annotations = answer?.annotations as Array<StreamedMessageAnnotationMessage>
+            if (!annotations) return null
             const imagesAnnotation = annotations.find((annotation: StreamedMessageAnnotationMessage) => annotation.type === 'relatedImages')
             if (imagesAnnotation) images = imagesAnnotation.imageData
             return images;
 
-        }, [item?.answer?.annotations?.length])
+        }, [answer?.annotations?.length])
 
         // memo for sources
         const sources = useMemo<Array<Source> | undefined | null>(() => {
 
             console.log(`sources useMemo running`)
             let chunks: Array<Source> | undefined = undefined;
-            const annotations = item?.answer?.annotations as undefined | Array<StreamedMessageAnnotationMessage>
+            const annotations = answer?.annotations as undefined | Array<StreamedMessageAnnotationMessage>
             if (annotations) {
                 const sourcesAnnotation = annotations.find((annotation) => annotation.type === 'sources')
                 if (sourcesAnnotation) {
@@ -128,7 +119,7 @@ export const QuestionBlock = memo(
                 }
             }
             return chunks?.slice(0, 10)
-        }, [item?.answer?.annotations?.length])
+        }, [answer?.annotations?.length])
 
         return (
             <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -136,7 +127,7 @@ export const QuestionBlock = memo(
                     <div className={'flex flex-row '}>
                         <div
                             className={'w-full text-xl flex flex-row items-center justify-start break-words line-clamp-2'}>
-                            {item.question.content}
+                            {question.content}
                         </div>
                         <Button variant="ghost" size="sm" className="">
                             <ChevronsUpDown className="h-4 w-4"/>
@@ -172,8 +163,8 @@ export const QuestionBlock = memo(
 
                                 {/* Load the content OR a loading state*/}
                                 {
-                                    item.answer?.content.length
-                                        ? <EnhancedMarkdown name={'answer'}>{item.answer?.content}</EnhancedMarkdown>
+                                    answer?.content.length
+                                        ? <EnhancedMarkdown name={'answer'}>{answer?.content}</EnhancedMarkdown>
                                         : <></>
                                 }
 
