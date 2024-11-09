@@ -6,7 +6,7 @@ import {rewriteQuery} from '@/lib/ai/agents/query-rewriter'
 import {getMessageTextContent} from '@/lib/ai/utils'
 import {extractKeywords} from '@/lib/ai/agents/keyword-extractor'
 import type {DataStreamMessage} from '@/lib/ai/types'
-import {Chunk, Image} from '@/db/schema'
+import {Chunk, type Document, Image} from '@/db/schema'
 import {findImages} from '@/lib/retrieval/image-retrieval'
 import {findChunks} from '@/lib/retrieval/chunk-retrieval'
 
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
         Promise.all([rewrittenQuery, keywords])
             .then(([rewrittenQuery, keywords]: [string, Array<string> | null]) => {
                 findChunks(rewrittenQuery, keywords || [])
-                    .then((chunks: Array<Omit<Chunk, 'embedding'>>)=> {
+                    .then((chunks: Array<Omit<Chunk & {document: Omit<Document, 'contents'>|null}, 'embedding'>>)=> {
                         data.appendMessageAnnotation({type: 'sources', chunks} satisfies DataStreamMessage)
                         resolve(chunks)
                     })

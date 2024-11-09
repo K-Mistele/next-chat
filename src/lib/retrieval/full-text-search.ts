@@ -1,6 +1,6 @@
 import {db} from '@/db'
-import {sql, getTableColumns, SQL, desc} from 'drizzle-orm'
-import {images, chunks, Chunk, Image} from '@/db/schema'
+import {sql, getTableColumns, SQL, desc, eq} from 'drizzle-orm'
+import {images, chunks, documents, type Chunk, type Image, type Document} from '@/db/schema'
 import logger from '@/lib/logger'
 import {performance} from 'node:perf_hooks'
 
@@ -21,15 +21,15 @@ export interface RankedFullTextSearchResult {
  * @param column
  * @param limit
  */
-export async function findExactMatches(keyWordsAndPhrases: Array<string>, table: typeof images, column: typeof images.alt, limit: number): Promise<Array<Omit<Image & RankedFullTextSearchResult, 'embedding'>>>;
-export async function findExactMatches(keyWordsAndPhrases: Array<string>, table: typeof chunks, column: typeof chunks.originalContent, limit: number): Promise<Array<Omit<Chunk & RankedFullTextSearchResult, 'embedding'>>>;
-export async function findExactMatches(keyWordsAndPhrases: Array<string>, table: typeof chunks, column: typeof chunks.contextualContent, limit: number): Promise<Array<Omit<Chunk & RankedFullTextSearchResult, 'embedding'>>>;
+export async function findExactMatches(keyWordsAndPhrases: Array<string>, table: typeof images, column: typeof images.alt, limit: number): Promise<Array<Omit<Image & RankedFullTextSearchResult & {document: Omit<Document, 'contents'> | null}, 'embedding'>>>;
+export async function findExactMatches(keyWordsAndPhrases: Array<string>, table: typeof chunks, column: typeof chunks.originalContent, limit: number): Promise<Array<Omit<Chunk & RankedFullTextSearchResult & {document: Omit<Document, 'contents'> | null}, 'embedding'>>>;
+export async function findExactMatches(keyWordsAndPhrases: Array<string>, table: typeof chunks, column: typeof chunks.contextualContent, limit: number): Promise<Array<Omit<Chunk & RankedFullTextSearchResult & {document: Omit<Document, 'contents'> | null}, 'embedding'>>>;
 export async function findExactMatches(
     keyWordsAndPhrases: Array<string>,
     table: typeof images | typeof chunks,
     column: typeof images.alt | typeof chunks.originalContent | typeof chunks.contextualContent,
     limit: number = 50
-): Promise<Array<Omit<Image & RankedFullTextSearchResult, 'embedding'>> | Array<Omit<Chunk & RankedFullTextSearchResult, 'embedding'>>> {
+): Promise<Array<Omit<Image & RankedFullTextSearchResult & {document: Omit<Document, 'contents'> | null}, 'embedding'>> | Array<Omit<Chunk & RankedFullTextSearchResult, 'embedding'>>> {
 
     // Separate into single-word keywords and multi-word "keyphrases"
     const keyPhrases = keyWordsAndPhrases.filter(keyPhrase => keyPhrase.includes(' '))
@@ -89,16 +89,19 @@ export async function findExactMatches(
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const {embedding, ...columns} = getTableColumns(table) // This line removes the "embedding" property since it's big
+    const {contents, ...documentColumns} = getTableColumns(documents)
     const start = performance.now()
     const query = db
         .select({
             ...columns,
             frequencyRank: frequencyRankClause.as('frequency_rank'),
-            proximityRank: proximityRankClause.as('proximity_rank')
+            proximityRank: proximityRankClause.as('proximity_rank'),
+            document: documentColumns
         })
         .from(table)
         .where(whereClause)
         .orderBy(t => desc(t.frequencyRank))
+        .leftJoin(documents, eq(chunks.documentId, documents.path))
         .limit(limit)
     const result = await query
     const end = performance.now()
@@ -106,7 +109,8 @@ export async function findExactMatches(
     logger.silly(`query: `, query.toSQL())
     logger.silly(`full-text search results:`, result)
 
-    return result as Array<Omit<Image & RankedFullTextSearchResult, 'embedding'>> | Array<Omit<Chunk & RankedFullTextSearchResult, 'embedding'>>
+    return result as Array<Omit<Image & RankedFullTextSearchResult & {document: Omit<Document, 'contents'> | null}, 'embedding'>>
+        | Array<Omit<Chunk & RankedFullTextSearchResult & {document: Omit<Document, 'contents'> | null}, 'embedding'>>
 }
 
 

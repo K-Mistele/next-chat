@@ -1,8 +1,7 @@
-
-import { CohereClient} from 'cohere-ai'
+import {CohereClient} from 'cohere-ai'
 import {db} from '@/db'
-import {asc, desc, getTableColumns} from 'drizzle-orm'
-import {chunks, type Chunk} from '@/db/schema'
+import {asc, desc, eq, getTableColumns} from 'drizzle-orm'
+import {chunks, type Chunk, documents, type Document} from '@/db/schema'
 import {l2Distance, cosineDistance, sql} from 'drizzle-orm'
 import logger from '@/lib/logger'
 import {findExactMatches} from '@/lib/retrieval/full-text-search'
@@ -15,100 +14,79 @@ const cohere = new CohereClient({
 export async function keywordSearchForChunks(
     keyPhrases: Array<string>,
     count: number
-): Promise<Array<Omit<Chunk, 'embedding'>>> {
+): Promise<Array<Omit<Chunk, 'embedding'> & {document: Omit<Document, 'contents'> | null}>> {
     if (!keyPhrases.length) return []
 
     logger.debug(`Performing "strict" search for keywords & phrases:`, keyPhrases)
     const results = await findExactMatches(keyPhrases, chunks, chunks.contextualContent, count)
     logger.debug(`Keyword search returned ${results.length} chunks out of ${count} limit`)
     return results
+}
 
+
+/**
+ * Do cosine distance search for chunks
+ * @param queryEmbedding
+ * @param maxChunks
+ * @returns chunks sorted by most relevent to least relevant
+ */
+export async function cosineDistanceSearchForChunks(
+    queryEmbedding: Array<number>,
+    maxChunks: number = 50
+): Promise<Array<Omit<Chunk & { cosineDistance: number, document: Omit<Document, 'contents'> | null }, 'embedding'>>> {
+
+    logger.debug(`Starting cosine search for chunks...`)
+    const {embedding, ...columns} = getTableColumns(chunks) // we don't want to see embeddings in query results
+    const {contents, ...documentColumns} = getTableColumns(documents)
+
+    const start = performance.now()
+
+    const result = await db.select({
+        ...columns,
+        cosineDistance: sql<number>`${cosineDistance(chunks.embedding, queryEmbedding)}`.as('cosine_distance'),
+        document: documentColumns
+    })
+        .from(chunks)
+        .orderBy(t => asc(t.cosineDistance))
+        .leftJoin(documents, eq(chunks.documentId, documents.path))
+        .limit(maxChunks)
+
+    const end = performance.now()
+    logger.verbose(`cosine distance search finishd in ${Math.floor(end - start)} ms`)
+    logger.verbose(`Top cosine distance chunks:`, result.slice(0, 5))
+    return result
 }
 
 /**
- * Conduct similarity search using cosine and l2 distance; time both and calculate the difference in results
- * @param query
- * @param limit
+ * Search for chunks based on the euclidean distance
+ * @param queryEmbedding
+ * @param maxChunks
+ * @returns chunk
  */
-export async function semanticSearchForChunks(
-    query: string,
-    limit: number
-): Promise<Array<Omit<Chunk, 'embedding'>>> {
+export async function euclideanDistanceSearchForChunks(
+    queryEmbedding: Array<number>,
+    maxChunks: number = 50
+): Promise<Array<Omit<Chunk & { l2Distance: number, document: Omit<Document, 'contents'> | null }, 'embedding'>>> {
 
-    logger.debug(`Semantic searching for chunks matching query`, query)
-
-    // Calculate the embedding
-    const embedResult = await cohere.v2.embed({
-        texts: [query],
-        model: 'embed-english-v3.0',
-        inputType: 'search_query',
-        embeddingTypes: ['float']
-    })
-    const embeddings = embedResult.embeddings.float
-    if (!embeddings || !embeddings.length) throw new Error(`Failed to embed query for image search`)
-    const queryEmbedding = embeddings[0]
-
+    logger.debug(`starting euclidean distance search...`)
     const {embedding, ...columns} = getTableColumns(chunks) // we don't want to see embeddings in query results
-    const l2DistanceQuery = new Promise<Array<Omit<Chunk & {l2Distance: number}, 'embedding'>>>(resolve => {
+    const {contents, ...documentColumns} = getTableColumns(documents)
+    const start = performance.now()
 
-        const start = performance.now()
-        db.select({
-            ...columns,
-            l2Distance: sql<number>`${l2Distance(chunks.embedding, queryEmbedding)}`.as('l2_distance'),
-        })
-            .from(chunks)
-            .orderBy(t => asc(t.l2Distance))
-            .limit(50)
-            .then(result => {
-
-                const end = performance.now()
-                logger.verbose(`L2 distance search finished in ${Math.floor(end - start)} ms`)
-                resolve(result)
-            })
+    const result = await db.select({
+        ...columns,
+        l2Distance: sql<number>`${l2Distance(chunks.embedding, queryEmbedding)}`.as('l2_distance'),
+        document: documentColumns
     })
+        .from(chunks)
+        .orderBy(t => asc(t.l2Distance))
+        .leftJoin(documents, eq(chunks.documentId, documents.path))
+        .limit(maxChunks)
 
-
-
-    const cosineDistanceQuery = new Promise<Array<Omit<Chunk & {cosineDistance: number}, 'embedding'>>>(resolve => {
-        const start = performance.now()
-        db.select({
-            ...columns,
-            cosineDistance: sql<number>`${cosineDistance(chunks.embedding, queryEmbedding)}`.as('cosine_dinstance')
-        })
-            .from(chunks)
-            .orderBy(t => asc(t.cosineDistance))
-            .limit(50)
-            .then(result => {
-                const end = performance.now()
-                logger.verbose(`Cosine distance finished in ${Math.floor(end - start)} ms `)
-                resolve(result)
-            })
-    })
-
-    const [l2DistanceResults, cosineDistanceResults] = await Promise.all([l2DistanceQuery, cosineDistanceQuery])
-
-    logger.debug(`L2 distance results:`, l2DistanceResults.map(c => ({
-        doc: c.documentId,
-        idx: c.chunkIndex,
-        ctxContent: c.contextualContent,
-        origContent: c.originalContent,
-        l2Distance: c.l2Distance
-    })))
-
-    logger.debug(`cosine distance results:`, cosineDistanceResults.map(c => ({
-        doc: c.documentId,
-        idx: c.chunkIndex,
-        ctxContent: c.contextualContent,
-        origContent: c.originalContent,
-        cosineDistance: c.cosineDistance
-    })))
-
-    // NOTE needs to be de-duplicated
-    return [
-        ...cosineDistanceResults,
-        ...l2DistanceResults
-    ]
-
+    const end = performance.now()
+    logger.debug(`Euclidean distance search finished in ${Math.floor(end - start)} ms`)
+    logger.debug(`Top euclidean distance chunks:`, result.slice(0, 5))
+    return result
 }
 
 /**
@@ -120,34 +98,114 @@ export async function semanticSearchForChunks(
 export async function findChunks(
     query: string,
     keyPhrases: Array<string>,
-    count: number=10
-): Promise<Array<Omit<Chunk, 'embedding'>>> {
+    count: number = 20
+): Promise<Array<Omit<Chunk & { document: Omit<Document, 'contents'> | null }, 'embedding'>>> {
     logger.verbose(`Searching for chunks for query ${query} and keywords: `, keyPhrases)
 
-    const [semanticSearchResult, keywordSearchResult] = await Promise.allSettled([
-        semanticSearchForChunks(query, count),
+    const queryEmbedding: Array<number> = await getQueryEmbedding(query)
+    const resultBuckets = await Promise.allSettled([
+        cosineDistanceSearchForChunks(queryEmbedding, 50),
+        euclideanDistanceSearchForChunks(queryEmbedding, 50),
         keywordSearchForChunks(keyPhrases, 50) // 50 and will be re-ranked
     ])
 
     // De-duplicate
-    const deduped: Record<string, Omit<Chunk, 'embedding'>> = {}
-    if (semanticSearchResult.status === 'fulfilled') {
-        semanticSearchResult.value.forEach(c => {deduped[c.id] = c})
-    }
-    if (keywordSearchResult.status === 'fulfilled') {
-        keywordSearchResult.value.forEach(c => {deduped[c.id] = c})
-    }
+    let duplicates: number = 0
+    const deduped: Record<string, Omit<Chunk, 'embedding'>  & {document: Omit<Document, 'contents'> | null}> = {}
+    const documents: Record<string, Array<Omit<Chunk, 'embedding'>>> = {}
+    resultBuckets.forEach((bucket) => {
+        if (bucket.status === 'rejected') {
+            logger.error(`Search result failed:`, bucket.reason)
+            return
+        }
+        bucket.value.forEach(c => {
+            if (c.id in deduped) {
+                duplicates++
+            }
+            else {
+                deduped[c.id] = c
+                if (c.documentId in documents) documents[c.documentId].push(c)
+                else documents[c.documentId] = [c]
+            }
 
-    // NOTE we need to also filter into buckets for RRF
-    // TODO RRF once de-duplicated; may need to do embedding here and have separate functions for L2 vs. cosine
+        })
+    })
 
-    // TODO re-rank as well; see which is better
+    const top5Documents = Object.keys(documents)
+        .map(docId => ({
+            id: docId,
+            documents: documents[docId]
+        }))
+        .sort((a, b) => b.documents.length - a.documents.length)
+        .slice(0, 5)
 
-    if (semanticSearchResult.status === 'fulfilled') {
-        return semanticSearchResult.value
-    }
-    else {
-        return []
-    }
+
+    // Track duplicates and common documents
+    logger.info(`Found ${duplicates} duplicate chunks across ${resultBuckets.length} searches for ${Object.keys(deduped).length} unique resules`)
+    logger.info(`Top 5 documents: `, top5Documents.map(d => ({id: d.id, chunksRetrieved: d.documents.length})))
+
+    // TODO: re-rank implementation
+    const topNDocuments = await rerankRetrievedChunks(
+        query,
+        Object.values(deduped),
+        count
+    )
+
+    // TODO join on documents to get document paths
+
+    // TODO: consider returning the top-k most-releveant document e.g. if multiple chunks come from 1
+    return topNDocuments
 }
 
+/**
+ * Create a query embedding using cohere
+ * @param query
+ */
+async function getQueryEmbedding(query: string): Promise<Array<number>> {
+    const embedResult = await cohere.v2.embed({
+        texts: [query],
+        model: 'embed-english-v3.0',
+        inputType: 'search_query',
+        embeddingTypes: ['float']
+    })
+
+    const embeddings = embedResult.embeddings.float
+    if (!embeddings || !embeddings.length) throw new Error(`Failed to embed query for image search`)
+    return embeddings[0]
+}
+
+
+/**
+ * Re-rank de-duplicated chunks by relevance. ensure you de-duplicated BEFORE using this.
+ * @param query
+ * @param chunks
+ * @param topN
+ */
+async function rerankRetrievedChunks(
+    query: string,
+    chunks: Array<Omit<Chunk, 'embedding'> & {document: Omit<Document, 'contents'> | null}>,
+    topN: number = 20
+): Promise<Array<Omit<Chunk, 'embedding'> & { document: Omit<Document, 'contents'> | null }>> {
+
+    logger.debug(`Reranking retrieved chunks...`)
+    const start = performance.now()
+    const rerankResult = await cohere.v2.rerank({
+        model: 'rerank-english-v3.0',
+        query: query,
+        topN: topN,
+        returnDocuments: false,
+        documents: chunks.map(c => c.contextualContent || '')
+    })
+    logger.debug(`rerank result:`, rerankResult)
+
+    // Results contain the index in the source array, and the relevance score
+    const topNDocuments = rerankResult.results.map(
+        ({index, relevanceScore}: { index: number, relevanceScore: number }) => {
+            logger.debug(`Relevant: ${relevanceScore}, document: `, chunks[index])
+            return chunks[index]
+        })
+    const end = performance.now()
+    logger.debug(`Reranked retrieved documents in ${Math.floor(end - start)} ms`)
+
+    return topNDocuments
+}

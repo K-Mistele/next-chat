@@ -7,11 +7,7 @@ export function Footer() {
 
                 {/* Left Side*/}
                 <div className={'text-sm text-muted-foreground'}>
-                    UI based on the Next.js&nbsp;
-                    <a href={'https://vercel.com/templates/next.js/morphic-ai-answer-engine-generative-ui'}>
-                        Morphic
-                    </a>
-                    &nbsp;starter.
+
                 </div>
 
                 {/* Right side*/}

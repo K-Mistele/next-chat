@@ -22,6 +22,7 @@ import {SourcesListLoading} from '@/components/loading/sources-list-loading'
 import {EnhancedMarkdown} from '@/components/enhanced-markdown'
 import type {DataStreamMessage} from '@/lib/ai/types'
 import {LoadingBadge} from '@/components/loading/loading-badge'
+import {Chunk} from '@/db/schema'
 
 export interface ConversationItem {
     question: Message
@@ -74,8 +75,6 @@ const mockSources: Array<Source> = [
 
 export function QuestionBlock({item}: QuestionBlockProps) {
 
-    console.log(`question block render`)
-
     const [isOpen, setIsOpen] = useState<boolean>(true)
     const [sourcesIsOpen, setSourcesIsOpen] = useState<boolean>(true)
     const sourcesMockPromise = useMemo(() => Promise.resolve(mockSources), [])
@@ -94,6 +93,7 @@ export function QuestionBlock({item}: QuestionBlockProps) {
 
     }, [item.answer?.annotations, item?.answer?.annotations?.length])
 
+    // Memo for keywords
     const keywords: Array<string> = useMemo<Array<string>>(() => {
 
         const keywords: Array<string> = []
@@ -105,6 +105,7 @@ export function QuestionBlock({item}: QuestionBlockProps) {
 
     }, [item.answer?.annotations, item?.answer?.annotations?.length])
 
+    // memo for images data
     const imagesData = useMemo<Array<{ url: string, alt: string }> | null>(() => {
         let images = null;
         if (!item?.answer?.annotations) return images
@@ -113,6 +114,23 @@ export function QuestionBlock({item}: QuestionBlockProps) {
         if (imagesAnnotation) images = imagesAnnotation.imageData
         return images;
 
+    }, [item.answer?.annotations, item?.answer?.annotations?.length])
+
+    // memo for sources
+    const sources = useMemo<Array<Omit<Chunk, 'embedding'>> | undefined>(() => {
+        let chunks: Array<Omit<Chunk, 'embedding'>> | undefined
+        const annotations = item?.answer?.annotations as undefined | Array<DataStreamMessage>
+        if (annotations) {
+            const sourcesAnnotation = annotations.find((annotation) => annotation.type === 'sources')
+            if (sourcesAnnotation) {
+                chunks = sourcesAnnotation.chunks
+                // TODO transform
+            }
+        }
+        return chunks?.map(chunk => ({
+            text: chunk.originalContent,
+
+        })).slice(0, 10)
     }, [item.answer?.annotations, item?.answer?.annotations?.length])
 
     return (
