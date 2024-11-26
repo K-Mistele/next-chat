@@ -2,9 +2,8 @@
 
 import {useChat} from 'ai/react'
 import {generateId} from 'ai'
-import {useEffect, use} from 'react'
+import {useEffect, use, memo} from 'react'
 import type {JSONValue, Message} from 'ai'
-import {useMemo} from 'react'
 import {AnswerBlock} from '@/components/answer-block'
 import {ChatScrollAnchor} from '@/components/chat-scroll-anchor'
 
@@ -14,8 +13,8 @@ export interface ConversationPanelProps {
     existingMessages: Promise<Array<Message>>
 }
 
-export function ConversationPanel({id, query, existingMessages}: ConversationPanelProps) {
-
+// eslint-disable-next-line react/display-name
+export const  ConversationPanel = memo(({id, query, existingMessages}: ConversationPanelProps)=>  {
     const initialMessages = use(existingMessages)
     // TODO initial messages should be looked up in parent RSC, and populated. if not
     const {
@@ -65,4 +64,4 @@ export function ConversationPanel({id, query, existingMessages}: ConversationPan
             {/* TODO Chat window */}
         </div>
     )
-}
+})

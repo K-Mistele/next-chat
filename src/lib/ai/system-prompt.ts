@@ -1,3 +1,4 @@
+import {Chunk} from '@/db/schema'
 
 export const systemPrompt = `
     You are an expert on Next.js. You will answer questions about Next.js, the app router, the pages router, and the 
@@ -23,3 +24,14 @@ export const systemPrompt = `
     you are affiliated with them, tell them that no, you are not - you're just a helpful assistant created by Kyle Mistele,
     who is not affiliated with vercel or next.
     `
+
+export function ragInstruction(chunks: Array<Omit<Chunk, 'embedding'>>) {
+    return `
+    Ground your answer in the following documents. Documents are contained between <documents></documents> XML tags, and each 
+    document is between a separate <document></document> set of tags. 
+    
+    <documents>
+    ${chunks.map(c => `<document>${c.originalContent}</document>\n`)}
+    </documents>
+    `
+}

@@ -1,6 +1,6 @@
 import {type CoreMessage, streamText, StreamData, TextPart, JSONValue} from 'ai'
 import {openai} from '@ai-sdk/openai'
-import {systemPrompt} from '@/lib/ai/system-prompt'
+import {ragInstruction, systemPrompt} from '@/lib/ai/system-prompt'
 import logger from '@/lib/logger'
 import {rewriteQuery} from '@/lib/ai/agents/query-rewriter'
 import {getMessageTextContent} from '@/lib/ai/utils'
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
                 // Notify the client that we are not waiting on researching
                 data.append({type: 'statusUpdate', status: 'researching'} satisfies StreamedDataMessage)
                 const intermediate = performance.now()
-                findChunks(rewrittenQuery, keywords || [])
+                findChunks(rewrittenQuery, keywords || [], 20)
                     .then((chunks: Array<Omit<Chunk, 'embedding'> & {document: Omit<Document, 'contents'>|null}>)=> {
                         data.appendMessageAnnotation({
                             type: 'sources',
@@ -116,15 +116,21 @@ export async function POST(request: Request) {
             })
     })
 
+    // TODO actually do generation with the chunks
+    const chunks = await chunksPromise
 
     // call data.append({...}) to add data to the stream
     // call data.appendMessageAnnotation to add to a message
-    const result = await streamText({
+    const result = streamText({
         model: openai('gpt-4o-mini'),
         system: 'You are a helpful assistant',
         messages: [
             {role: `system`, content: systemPrompt},
-            ...messages
+            ...messages,
+            {
+                role: 'user',
+                content: ragInstruction(chunks)
+            }
         ],
         onFinish: () => {
             // TODO do NOT call data.close until promises have settled for image search, chunk search, agents, and follow-up suggestions
