@@ -1,4 +1,4 @@
-import {type CoreMessage, streamText, StreamData, TextPart, JSONValue} from 'ai'
+import {type CoreMessage, streamText, JSONValue, createDataStreamResponse} from 'ai'
 import {openai} from '@ai-sdk/openai'
 import {ragInstruction, systemPrompt} from '@/lib/ai/system-prompt'
 import logger from '@/lib/logger'
@@ -14,134 +14,166 @@ export async function POST(request: Request) {
 
     // TODO need to use the data stream protoocl to start streaming before we start generating
     const {messages}: { messages: CoreMessage[] } = await request.json()
-    const [lastUserMessage] = messages.filter(message => message.role === "user").slice(-1);
-    const userQuery = getMessageTextContent(lastUserMessage)
 
-    const start = performance.now()
-    const data = new StreamData()
+    return createDataStreamResponse({
+        execute: async (dataStream) => {
+            const [lastUserMessage] = messages.filter(message => message.role === "user").slice(-1);
+            const userQuery = getMessageTextContent(lastUserMessage)
 
-    // rewrite for RAG purposes
-    data.append({type: 'statusUpdate', status: 'optimizing'} satisfies StreamedDataMessage)
-    const rewrittenQuery = new Promise<string>((resolve) => {
-        rewriteQuery(userQuery)
-            .then((rewrittenQuery: string) => {
-                if (!rewrittenQuery || !rewrittenQuery.length) throw new Error(`Rewritten query has no length!`)
-                data.appendMessageAnnotation({type: 'rewrittenQuery', query: rewrittenQuery} satisfies StreamedMessageAnnotationMessage)
-                resolve(rewrittenQuery)
-            })
-            .catch((err: any) => {
-                logger.error(`Error rewriting query: `, err)
-                data.appendMessageAnnotation({type: 'rewrittenQuery', query: userQuery} satisfies StreamedMessageAnnotationMessage)
-                resolve(userQuery)
-            })
-    })
+            const start = performance.now()
 
-    // Extract keywords; stream to client
-    const keywords = new Promise<Array<string>|null>((resolve) => {
-        // extract keywrods for keyword-based search
-        extractKeywords(userQuery)
-            .then((keywords: Array<string>) => {
-                if (!keywords.length) {
-                    logger.error(`Failed to extract any keywords!`)
-                    resolve(null)
-                }
-                else {
-                    data.appendMessageAnnotation({type: 'extractedKeywords', keywords} satisfies StreamedMessageAnnotationMessage)
-                    resolve(keywords)
-                }
-            })
-            .catch(err => {
-                logger.error(`Error extracting keywords: `, err)
-                resolve(null)
-            })
-    })
-
-    // Promise to retrieve images; sends the data when it has been resolved
-    // Depends on rewritten query and keywords
-    const imagesPromise = new Promise<Array<Omit<Image, 'embedding'>>>((resolve) => {
-        Promise.all([rewrittenQuery, keywords])
-            .then(([query, keywords]: [string, Array<string> | null]) => {
-                findImages(query, keywords || [])
-                    .then(images => {
-                        const imageData = images.map(img => ({
-                            url: img.url,
-                            alt: img.alt || ''
-                        }))
-                        data.appendMessageAnnotation({type: 'relatedImages', imageData} satisfies StreamedMessageAnnotationMessage)
-                        logger.info(`Images streamed to client:`, imageData)
-                        resolve(images)
-                    })
-                    .catch((err: any) => {
-                        logger.error(`Failed to retrieve images:`, err)
-                        resolve([])
-                    })
-            })
-            .catch((err: any) => {
-                logger.error(`Unable to retrieve query and keywords for image retrieval:`, err)
-                resolve([])
-            })
-    })
-
-    const chunksPromise = new Promise<Array<Omit<Chunk, 'embedding'> & {document: Omit<Document, 'contents'> | null}>>((resolve) => {
-        Promise.all([rewrittenQuery, keywords])
-            .then(([rewrittenQuery, keywords]: [string, Array<string> | null]) => {
-
-                // Notify the client that we are not waiting on researching
-                data.append({type: 'statusUpdate', status: 'researching'} satisfies StreamedDataMessage)
-                const intermediate = performance.now()
-                findChunks(rewrittenQuery, keywords || [], 20)
-                    .then((chunks: Array<Omit<Chunk, 'embedding'> & {document: Omit<Document, 'contents'>|null}>)=> {
-                        data.appendMessageAnnotation({
-                            type: 'sources',
-                            sources: normalizeChunksWithDocumentsToSources(chunks).slice(0, 10) // SHORT
+            // rewrite for RAG purposes
+            dataStream.writeData({type: 'statusUpdate', status: 'optimizing'} satisfies StreamedDataMessage)
+            const rewrittenQuery = new Promise<string>((resolve) => {
+                rewriteQuery(userQuery)
+                    .then((rewrittenQuery: string) => {
+                        if (!rewrittenQuery || !rewrittenQuery.length) throw new Error(`Rewritten query has no length!`)
+                        dataStream.writeMessageAnnotation({
+                            type: 'rewrittenQuery',
+                            query: rewrittenQuery
                         } satisfies StreamedMessageAnnotationMessage)
-
-                        // Notify the client we're generating now
-                        data.append({type: 'statusUpdate', status: 'generating'} satisfies  StreamedDataMessage)
-                        const end = performance.now()
-                        logger.info(`Took ${Math.floor(intermediate-start)} ms from request start to get rewritten query and keywords`)
-                        logger.info(`Took ${Math.floor(end - intermediate)} ms from receiving search terms to stream chunks`)
-                        logger.info(`Took ${Math.floor(end - start)} ms from request start to stream chunks`)
-                        resolve(chunks)
+                        resolve(rewrittenQuery)
                     })
                     .catch((err: any) => {
-                        logger.error(`Failed to retrieve chunks:`, err)
-                        data.appendMessageAnnotation({type: 'sources', sources: []} satisfies  StreamedMessageAnnotationMessage)
+                        logger.error(`Error rewriting query: `, err)
+                        dataStream.writeMessageAnnotation({
+                            type: 'rewrittenQuery',
+                            query: userQuery
+                        } satisfies StreamedMessageAnnotationMessage)
+                        resolve(userQuery)
+                    })
+            })
+
+            // Extract keywords; stream to client
+            const keywords = new Promise<Array<string>|null>((resolve) => {
+                // extract keywrods for keyword-based search
+                extractKeywords(userQuery)
+                    .then((keywords: Array<string>) => {
+                        if (!keywords.length) {
+                            logger.error(`Failed to extract any keywords!`)
+                            resolve(null)
+                        }
+                        else {
+                            dataStream.writeMessageAnnotation({
+                                type: 'extractedKeywords',
+                                keywords
+                            } satisfies StreamedMessageAnnotationMessage)
+                            resolve(keywords)
+                        }
+                    })
+                    .catch(err => {
+                        logger.error(`Error extracting keywords: `, err)
+                        resolve(null)
+                    })
+            })
+
+            // Promise to retrieve images; sends the data when it has been resolved
+            // Depends on rewritten query and keywords
+            const imagesPromise = new Promise<Array<Omit<Image, 'embedding'>>>((resolve) => {
+                Promise.all([rewrittenQuery, keywords])
+                    .then(([query, keywords]: [string, Array<string> | null]) => {
+                        findImages(query, keywords || [])
+                            .then(images => {
+                                const imageData = images.map(img => ({
+                                    url: img.url,
+                                    alt: img.alt || ''
+                                }))
+                                dataStream.writeMessageAnnotation({
+                                    type: 'relatedImages',
+                                    imageData
+                                } satisfies StreamedMessageAnnotationMessage)
+                                logger.info(`Images streamed to client:`, imageData)
+                                resolve(images)
+                            })
+                            .catch((err: any) => {
+                                logger.error(`Failed to retrieve images:`, err)
+                                resolve([])
+                            })
+                    })
+                    .catch((err: any) => {
+                        logger.error(`Unable to retrieve query and keywords for image retrieval:`, err)
                         resolve([])
                     })
             })
-            .catch((err: any) => {
-                logger.error(`Unable to retrieve query and chunks for image retrieval`, err)
-                data.appendMessageAnnotation({type: 'sources', sources: []} satisfies  StreamedMessageAnnotationMessage)
+
+            const chunksPromise = new Promise<Array<Omit<Chunk, 'embedding'> & {document: Omit<Document, 'contents'> | null}>>((resolve) => {
+                Promise.all([rewrittenQuery, keywords])
+                    .then(([rewrittenQuery, keywords]: [string, Array<string> | null]) => {
+
+                        // Notify the client that we are not waiting on researching
+                        dataStream.writeData({
+                            type: 'statusUpdate',
+                            status: 'researching'
+                        } satisfies StreamedDataMessage)
+                        const intermediate = performance.now()
+                        findChunks(rewrittenQuery, keywords || [], 20)
+                            .then((chunks: Array<Omit<Chunk, 'embedding'> & {document: Omit<Document, 'contents'>|null}>)=> {
+                                dataStream.writeMessageAnnotation({
+                                    type: 'sources',
+                                    sources: normalizeChunksWithDocumentsToSources(chunks).slice(0, 10) // SHORT
+                                } satisfies StreamedMessageAnnotationMessage)
+
+                                // Notify the client we're generating now
+                                dataStream.writeData({
+                                    type: 'statusUpdate',
+                                    status: 'generating'
+                                } satisfies  StreamedDataMessage)
+                                const end = performance.now()
+                                logger.info(`Took ${Math.floor(intermediate-start)} ms from request start to get rewritten query and keywords`)
+                                logger.info(`Took ${Math.floor(end - intermediate)} ms from receiving search terms to stream chunks`)
+                                logger.info(`Took ${Math.floor(end - start)} ms from request start to stream chunks`)
+                                resolve(chunks)
+                            })
+                            .catch((err: any) => {
+                                logger.error(`Failed to retrieve chunks:`, err)
+                                dataStream.writeMessageAnnotation({
+                                    type: 'sources',
+                                    sources: []
+                                } satisfies  StreamedMessageAnnotationMessage)
+                                resolve([])
+                            })
+                    })
+                    .catch((err: any) => {
+                        logger.error(`Unable to retrieve query and chunks for image retrieval`, err)
+                        dataStream.writeMessageAnnotation({
+                            type: 'sources',
+                            sources: []
+                        } satisfies  StreamedMessageAnnotationMessage)
+                    })
             })
-    })
 
-    // TODO actually do generation with the chunks
-    const chunks = await chunksPromise
+            // TODO actually do generation with the chunks
+            const chunks = await chunksPromise
 
-    // call data.append({...}) to add data to the stream
-    // call data.appendMessageAnnotation to add to a message
-    const result = streamText({
-        model: openai('gpt-4o-mini'),
-        system: 'You are a helpful assistant',
-        messages: [
-            {role: `system`, content: systemPrompt},
-            ...messages,
-            {
-                role: 'user',
-                content: ragInstruction(chunks)
-            }
-        ],
-        onFinish: () => {
-            // TODO do NOT call data.close until promises have settled for image search, chunk search, agents, and follow-up suggestions
-            data.append({type: 'statusUpdate', status: 'done'} satisfies StreamedDataMessage)
-            data.close()
+            // call data.append({...}) to add data to the stream
+            // call data.appendMessageAnnotation to add to a message
+            const result = streamText({
+                model: openai('gpt-4o-mini'),
+                system: 'You are a helpful assistant',
+                messages: [
+                    {role: `system`, content: systemPrompt},
+                    ...messages,
+                    {
+                        role: 'user',
+                        content: ragInstruction(chunks)
+                    }
+                ],
+                onFinish: () => {
+                    dataStream.writeData({type: 'statusUpdate', status: 'done'} satisfies StreamedDataMessage)
+                }
+            })
+
+            // merge the streamed text into the data stream
+            result.mergeIntoDataStream(dataStream)
+
+
+        },
+        onError: (error) => {
+            // de-mask errors since they are hidden from the client by default for security reasons.
+            return error instanceof  Error ? error.message : String(error)
         }
     })
 
-
-    logger.debug(`Returning stream...`)
-    return result.toDataStreamResponse({data})
 }
 
 function normalizeChunksWithDocumentsToSources(
