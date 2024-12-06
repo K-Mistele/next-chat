@@ -65,7 +65,7 @@ export const ConversationPanel = memo(({id, query, existingMessages}: Conversati
                             </div>
 
                             <div className={'flex flex-col gap-y-2'} key={`a-${idx}`}>
-                                <AnswerPanel {...q.answer}/>
+                                <AnswerPanel {...q.answer} data={data}/>
                             </div>
                         </div>
                     ))
