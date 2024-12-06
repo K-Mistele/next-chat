@@ -94,6 +94,7 @@ const logger = winston.createLogger({
     level: process.env.LOG_LEVEL || 'info',
     format: winston.format.combine(
         winston.format.prettyPrint(),
+        // @ts-expect-error it works
         utilFormatter(),
         winston.format.colorize({ all: false}),
         //winston.format.simple(),
