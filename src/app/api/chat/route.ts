@@ -1,4 +1,12 @@
-import {type CoreMessage, streamText, JSONValue, createDataStreamResponse} from 'ai'
+import {
+    type CoreMessage,
+    streamText,
+    JSONValue,
+    createDataStreamResponse,
+    NoSuchToolError,
+    InvalidToolArgumentsError,
+    ToolExecutionError,
+} from 'ai'
 import {openai} from '@ai-sdk/openai'
 import {ragInstruction, systemPrompt} from '@/lib/ai/system-prompt'
 import logger from '@/lib/logger'
@@ -169,6 +177,15 @@ export async function POST(request: Request) {
 
         },
         onError: (error) => {
+            if (NoSuchToolError.isInstance(error)) {
+
+            }
+            else if (InvalidToolArgumentsError.isInstance(error)) {
+
+            }
+            else if (ToolExecutionError.isInstance(error)) {
+
+            }
             // de-mask errors since they are hidden from the client by default for security reasons.
             return error instanceof  Error ? error.message : String(error)
         }

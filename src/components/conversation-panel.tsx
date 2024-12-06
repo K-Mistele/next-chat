@@ -1,11 +1,12 @@
 'use client'
 
 import {useChat} from 'ai/react'
-import {generateId} from 'ai'
+import {generateId, JSONValue} from 'ai'
 import {useEffect, use, memo, useState} from 'react'
 import type {Message} from 'ai'
-import { QueryWithAnswer} from '@/lib/query-with-answer'
+import {QueryWithAnswer} from '@/lib/query-with-answer'
 import {AnswerPanel} from '@/components/answer-panel'
+import {StatusUpdate, StreamedDataMessage} from '@/lib/ai/types'
 
 export interface ConversationPanelProps {
     id: string
@@ -14,11 +15,12 @@ export interface ConversationPanelProps {
 }
 
 
-
 // eslint-disable-next-line react/display-name
 export const ConversationPanel = memo(({id, query, existingMessages}: ConversationPanelProps) => {
     const initialMessages = use(existingMessages)
-    const [queries, setQueries] = useState<Array<QueryWithAnswer|undefined>>([new QueryWithAnswer(query)])
+    const [pastQueries, setPastQueries] = useState<Array<QueryWithAnswer>>([])
+    const [currentQuery, setCurrentQuery] = useState<QueryWithAnswer>({query})
+
 
     // TODO initial messages should be looked up in parent RSC, and populated. if not
     const {
@@ -27,7 +29,7 @@ export const ConversationPanel = memo(({id, query, existingMessages}: Conversati
         input,
         setInput,
         setData,
-        append
+        append,
     } = useChat({
         id: id,
         initialMessages: initialMessages,
@@ -35,7 +37,11 @@ export const ConversationPanel = memo(({id, query, existingMessages}: Conversati
         onResponse: (response) => {
             console.log(`Response received at ${new Date().toTimeString()}`)
         },
-        onFinish: ({}) => {
+        onFinish: ({content}) => {
+            setCurrentQuery(current => ({
+                ...current,
+                content
+            }))
         },
         experimental_throttle: 100 // prevent too many component updates, at 50tkps you're at 20ms
     })
@@ -45,6 +51,100 @@ export const ConversationPanel = memo(({id, query, existingMessages}: Conversati
         if (!initialMessages.length) append({role: 'user', content: query, id: generateId()})
     }, [])
 
+    const [finishSignalReceived, setFinishedSignalReceived] = useState<boolean>(false)
+    const [rewrittenQuery, setRewrittenQuery] = useState<undefined | string>(undefined)
+    const [keywords, setKeywords] = useState<Array<string> | undefined>(undefined)
+
+    const [status, setStatus] = useState<string>("Thinking...")
+
+
+    async function newQuery(query: string) {
+        // TODO push current query to past queries
+
+        // TODO set finishSignalReceived to true
+
+        // TODO flush data stream
+
+        // TODO push new query
+
+    }
+
+    // Create a single memo for the data stream so that once the stream is cleared for a new message,
+    //  the statuses here don't update
+    useEffect(() => {
+        if (finishSignalReceived) {
+            return
+        }
+
+        // Handle status update processing
+        const statusUpdates = data?.filter((msg: JSONValue) => (msg as StreamedDataMessage).type === 'statusUpdate') as Array<StatusUpdate> | undefined
+        if (statusUpdates && statusUpdates.length) {
+            const lastUpdate = statusUpdates[statusUpdates.length - 1]
+            switch (lastUpdate.status) {
+                case 'optimizing':
+                    setCurrentQuery(currentQuery => ({
+                        ...currentQuery,
+                        status: 'Understanding query and extracting keywords...'
+                    }))
+                    break;
+                case 'researching':
+                    setCurrentQuery(currentQuery => ({
+                        ...currentQuery,
+                        status: 'Searching for relevant documentation...'
+                    }))
+                    break;
+                case 'generating':
+                    setCurrentQuery(currentQuery => ({
+                        ...currentQuery,
+                        status: 'Writing an answer...'
+                    }))
+                    break;
+                case 'done':
+                    setCurrentQuery(currentQuery => ({
+                        ...currentQuery,
+                        status: 'Answer finished!'
+                    }))
+                    setFinishedSignalReceived(true)
+                    break
+                default:
+                    setCurrentQuery(currentQuery => ({
+                        ...currentQuery,
+                        status: 'Thinking...'
+                    }))
+            }
+        }
+    }, [data?.length])
+
+    useEffect(() => {
+        if (finishSignalReceived || !data) return
+        for (const msg of (data as Array<StreamedDataMessage>)) {
+            if (msg.type === 'rewrittenQuery') {
+                setCurrentQuery(current => ({
+                    ...current,
+                    rewritten: msg.query
+                }))
+            }
+            else if (msg.type === 'extractedKeywords') {
+                setCurrentQuery(current => ({
+                    ...current,
+                    keywords: msg.keywords
+                }))
+            }
+            else if (msg.type === 'sources') {
+                setCurrentQuery(current => ({
+                    ...current,
+                    sources: msg.sources
+                }))
+            }
+            else if (msg.type === 'relatedImages') {
+                setCurrentQuery(current => ({
+                    ...current,
+                    images: msg.imageData
+                }))
+            }
+        }
+    }, [data?.length, finishSignalReceived]);
+
 
     return (
         // Container
@@ -53,7 +153,7 @@ export const ConversationPanel = memo(({id, query, existingMessages}: Conversati
             <div className={'sm:px-12 px-8 pb-14 md:pb-24 mx-auto flex flex-col space-y-3 md:space-y-4 w-full'}>
 
                 {
-                    queries.filter(q => !!q).map((q: QueryWithAnswer, idx: number) => (
+                    pastQueries.filter(q => !!q).map((q: QueryWithAnswer, idx: number) => (
                         <div className={'flex flex-col space-y-3 md:space-y-4 w-full'} key={idx}>
                             {/* Query*/}
                             <div className={'w-full mt-6 flex flex-row'} key={`q-${idx}`}>
@@ -65,11 +165,28 @@ export const ConversationPanel = memo(({id, query, existingMessages}: Conversati
                             </div>
 
                             <div className={'flex flex-col gap-y-2'} key={`a-${idx}`}>
-                                <AnswerPanel {...q.answer} data={data}/>
+                                <AnswerPanel {...q} data={data} finishSignalReceived={finishSignalReceived}/>
                             </div>
                         </div>
                     ))
                 }
+
+                <div className={'flex flex-col space-y-3 md:space-y-4 w-full'}>
+                    {/* Query*/}
+                    <div className={'w-full mt-6 flex flex-row'}>
+                        <div
+                            className={'w-full text-2xl flex flex-row items-center justify-start break-words line-clamp-2'}>
+                            {currentQuery.query}
+                        </div>
+
+                    </div>
+
+                    <div className={'flex flex-col gap-y-2'}>
+                        <AnswerPanel {...currentQuery} data={data} finishSignalReceived={finishSignalReceived}
+                                     content={currentQuery.content}/>
+                    </div>
+                </div>
+
 
             </div>
         </div>

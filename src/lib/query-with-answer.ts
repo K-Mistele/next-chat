@@ -10,15 +10,10 @@ export interface QueryAnswer {
     status?: string
     rewritten?: string
     images?: Array<ImageInfo>
-    sources?: Array<Source> | undefined | null
+    sources?: Array<Source>
+    keywords?: Array<string>
 }
 
-export class QueryWithAnswer {
-    public query: string
-    public answer: QueryAnswer
-
-    constructor(query: string) {
-        this.query = query
-        this.answer = {}
-    }
+export interface QueryWithAnswer extends QueryAnswer {
+    query: string
 }
