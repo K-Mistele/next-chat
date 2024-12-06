@@ -17,11 +17,15 @@ import type {Source, StreamedDataMessage} from '@/lib/ai/types'
 import {Chunk, type Document, Image} from '@/db/schema'
 import {findImages} from '@/lib/retrieval/image-retrieval'
 import {findChunks} from '@/lib/retrieval/chunk-retrieval'
+import {rateLimiterShouldAllowRequest} from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
 
     // TODO need to use the data stream protoocl to start streaming before we start generating
     const {messages}: { messages: CoreMessage[] } = await request.json()
+
+    const shouldAllowRequest = await rateLimiterShouldAllowRequest(request)
+    if (!shouldAllowRequest) return Response.json({type: 'error', error: `Too many requests. Please back off.`}, {status: 429})
 
     return createDataStreamResponse({
         execute: async (dataStream) => {

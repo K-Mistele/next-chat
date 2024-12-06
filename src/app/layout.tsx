@@ -6,6 +6,8 @@ import {Header} from '@/components/header'
 import {Footer} from '@/components/footer'
 import {TooltipProvider} from '@/components/ui/tooltip'
 
+
+
 const geistSans = localFont({
     src: "../fonts/GeistVF.woff",
     variable: "--font-geist-sans",
@@ -27,6 +29,7 @@ export default function RootLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+
     return (
         <html lang="en">
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen h-screen max-h-screen bg-background relative`}>

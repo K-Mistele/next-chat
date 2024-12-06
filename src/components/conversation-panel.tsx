@@ -6,6 +6,14 @@ import {useEffect, memo, useState, useMemo} from 'react'
 import {QueryWithAnswer} from '@/lib/query-with-answer'
 import {AnswerPanel} from '@/components/answer-panel'
 import {StatusUpdate, StreamedDataMessage} from '@/lib/ai/types'
+import {useRouter} from 'next/navigation'
+import {HotKeys} from 'react-hotkeys'
+
+
+const keyMap = {
+    NEW_QUERY: ["control", "k"],
+    NEW_QUERY_2: ["command", "k"]
+}
 
 export interface ConversationPanelProps {
     id: string
@@ -139,53 +147,64 @@ export const ConversationPanel = memo(({id, query}: ConversationPanelProps) => {
 
     const lastAssistantMessage = useMemo(() => {
         const assistantMessages = messages?.filter(m => m.role === 'assistant')
-        if (assistantMessages?.length) return assistantMessages[assistantMessages.length-1]
+        if (assistantMessages?.length) return assistantMessages[assistantMessages.length - 1]
         else return undefined
     }, [messages])
-    return (
-        // Container
-        <div>
-            {/* Content*/}
-            <div className={'sm:px-12 px-8 pb-14 md:pb-24 mx-auto flex flex-col space-y-3 md:space-y-4 w-full'}>
+    const router = useRouter()
+    return (<HotKeys keyMap={keyMap} handlers={{
+            NEW_QUERY: (e) => {
+                if (e) e.preventDefault()
+                router.push('/')
+            },
+            NEW_QUERY_2: (e) => {
+                if (e) e.preventDefault()
+                router.push('/')
+            }
+        }}>
+            <div>
+                {/* Content*/}
+                <div className={'sm:px-12 px-8 pb-14 md:pb-24 mx-auto flex flex-col space-y-3 md:space-y-4 w-full'}>
 
-                {
-                    pastQueries.filter(q => !!q).map((q: QueryWithAnswer, idx: number) => (
-                        <div className={'flex flex-col space-y-3 md:space-y-4 w-full'} key={idx}>
-                            {/* Query*/}
-                            <div className={'w-full mt-6 flex flex-row'} key={`q-${idx}`}>
-                                <div
-                                    className={'w-full text-2xl flex flex-row items-center justify-start break-words line-clamp-2'}>
-                                    {q?.query}
+                    {
+                        pastQueries.filter(q => !!q).map((q: QueryWithAnswer, idx: number) => (
+                            <div className={'flex flex-col space-y-3 md:space-y-4 w-full'} key={idx}>
+                                {/* Query*/}
+                                <div className={'w-full mt-6 flex flex-row'} key={`q-${idx}`}>
+                                    <div
+                                        className={'w-full text-2xl flex flex-row items-center justify-start break-words line-clamp-2'}>
+                                        {q?.query}
+                                    </div>
+
                                 </div>
 
+                                <div className={'flex flex-col gap-y-2'} key={`a-${idx}`}>
+                                    <AnswerPanel {...q} data={data} finishSignalReceived={finishSignalReceived}/>
+                                </div>
+                            </div>
+                        ))
+                    }
+
+                    <div className={'flex flex-col space-y-3 md:space-y-4 w-full'}>
+                        {/* Query*/}
+                        <div className={'w-full mt-6 flex flex-row'}>
+                            <div
+                                className={'w-full text-2xl flex flex-row items-center justify-start break-words line-clamp-2'}>
+                                {currentQuery.query}
                             </div>
 
-                            <div className={'flex flex-col gap-y-2'} key={`a-${idx}`}>
-                                <AnswerPanel {...q} data={data} finishSignalReceived={finishSignalReceived}/>
-                            </div>
-                        </div>
-                    ))
-                }
-
-                <div className={'flex flex-col space-y-3 md:space-y-4 w-full'}>
-                    {/* Query*/}
-                    <div className={'w-full mt-6 flex flex-row'}>
-                        <div
-                            className={'w-full text-2xl flex flex-row items-center justify-start break-words line-clamp-2'}>
-                            {currentQuery.query}
                         </div>
 
+                        <div className={'flex flex-col gap-y-2'}>
+                            <AnswerPanel {...currentQuery} data={data} finishSignalReceived={finishSignalReceived}
+                                         content={lastAssistantMessage?.content}/>
+                        </div>
                     </div>
 
-                    <div className={'flex flex-col gap-y-2'}>
-                        <AnswerPanel {...currentQuery} data={data} finishSignalReceived={finishSignalReceived}
-                                     content={lastAssistantMessage?.content}/>
-                    </div>
+
                 </div>
-
-
             </div>
-        </div>
+        </HotKeys>
+
     )
 
 })
