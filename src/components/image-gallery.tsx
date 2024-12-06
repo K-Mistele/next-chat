@@ -1,5 +1,5 @@
 'use client'
-import {use, useMemo, useState, memo} from 'react'
+import {useMemo, useState, memo} from 'react'
 import Image from 'next/image'
 import {Tooltip} from '@radix-ui/react-tooltip'
 import {TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'

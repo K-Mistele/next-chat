@@ -1,7 +1,7 @@
 export function Footer() {
 
     return (
-        <div className={'z-10 absolute bottom-0 right-0 flex flex-col w-fit bg-backgrond'}>
+        <div className={'z-10 sticky bottom-0 right-0 flex flex-col w-fit bg-background w-screen'}>
             <footer
                 className={'w-full p-1 md:p-2 flex flex-col md:flex-row justify-between items-center z-10 backgroup-blur bg-background h-full'}>
 

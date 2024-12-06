@@ -178,13 +178,13 @@ export async function POST(request: Request) {
         },
         onError: (error) => {
             if (NoSuchToolError.isInstance(error)) {
-
+                logger.error(`No such tool error:`, error)
             }
             else if (InvalidToolArgumentsError.isInstance(error)) {
-
+                logger.error(`Invalid tool arguments error:`, error)
             }
             else if (ToolExecutionError.isInstance(error)) {
-
+                logger.error(`Tool execution error:`, error)
             }
             // de-mask errors since they are hidden from the client by default for security reasons.
             return error instanceof  Error ? error.message : String(error)
@@ -215,7 +215,6 @@ function normalizeChunksWithDocumentsToSources(
 
             const path = source.document.path.replace(`data/docs/ai`, ``)
             const urlPath = path.split('/').map(segment => {
-                let newSegment: string
                 const segmentComponents = segment.split('-')
                 if (isNumber(segmentComponents[0])) return segmentComponents.slice(1).join('-')
                 else return segment

@@ -3,6 +3,7 @@ import {ConversationPanel} from '@/components/conversation-panel'
 import {generateId, type Message} from 'ai'
 import {type PageProps} from '@/lib/types'
 import {Metadata} from 'next'
+import {ScrollArea} from '@/components/ui/scroll-area'
 
 export async function generateMetadata({searchParams}: PageProps): Promise<Metadata> {
     const {query} = await searchParams
@@ -21,16 +22,13 @@ export default async function SearchPage({searchParams}: PageProps) {
 
     const id = generateId()
 
-    // TODO this should be a DB lookup
-    const existingMessages: Promise<Array<Message>> = Promise.resolve([] satisfies Array<Message>)
-
     return (
         // Container
         <div>
-            <div className={'px-8 sm:px-12 pb-14 md:pb-24 max-w-[80%] mx-auto flex flex-col space-y-3 md:space-y-4 max-h-screen overflow-scroll scrollbar-hide'}>
+            <div className={'px-8 sm:px-12 pb-14 md:pb-24 max-w-[80%] mx-auto flex flex-col space-y-3 md:space-y-4 min-h-screen'}>
 
                 {/* TODO streaming suspense*/}
-                <ConversationPanel id={id} query={queryParams.query as string} existingMessages={existingMessages}/>
+                <ConversationPanel id={id} query={queryParams.query as string}/>
             </div>
         </div>
     )

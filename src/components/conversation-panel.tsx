@@ -2,8 +2,7 @@
 
 import {useChat} from 'ai/react'
 import {generateId, JSONValue} from 'ai'
-import {useEffect, use, memo, useState} from 'react'
-import type {Message} from 'ai'
+import {useEffect, memo, useState, useMemo} from 'react'
 import {QueryWithAnswer} from '@/lib/query-with-answer'
 import {AnswerPanel} from '@/components/answer-panel'
 import {StatusUpdate, StreamedDataMessage} from '@/lib/ai/types'
@@ -11,15 +10,14 @@ import {StatusUpdate, StreamedDataMessage} from '@/lib/ai/types'
 export interface ConversationPanelProps {
     id: string
     query: string
-    existingMessages: Promise<Array<Message>>
 }
 
 
 // eslint-disable-next-line react/display-name
-export const ConversationPanel = memo(({id, query, existingMessages}: ConversationPanelProps) => {
-    const initialMessages = use(existingMessages)
+export const ConversationPanel = memo(({id, query}: ConversationPanelProps) => {
     const [pastQueries, setPastQueries] = useState<Array<QueryWithAnswer>>([])
     const [currentQuery, setCurrentQuery] = useState<QueryWithAnswer>({query})
+    const [finishSignalReceived, setFinishedSignalReceived] = useState<boolean>(false)
 
 
     // TODO initial messages should be looked up in parent RSC, and populated. if not
@@ -32,7 +30,6 @@ export const ConversationPanel = memo(({id, query, existingMessages}: Conversati
         append,
     } = useChat({
         id: id,
-        initialMessages: initialMessages,
         api: `/api/chat`,
         onResponse: (response) => {
             console.log(`Response received at ${new Date().toTimeString()}`)
@@ -48,14 +45,8 @@ export const ConversationPanel = memo(({id, query, existingMessages}: Conversati
 
     //  Set query to first user message
     useEffect(() => {
-        if (!initialMessages.length) append({role: 'user', content: query, id: generateId()})
+        append({role: 'user', content: query, id: generateId()})
     }, [])
-
-    const [finishSignalReceived, setFinishedSignalReceived] = useState<boolean>(false)
-    const [rewrittenQuery, setRewrittenQuery] = useState<undefined | string>(undefined)
-    const [keywords, setKeywords] = useState<Array<string> | undefined>(undefined)
-
-    const [status, setStatus] = useState<string>("Thinking...")
 
 
     async function newQuery(query: string) {
@@ -146,6 +137,11 @@ export const ConversationPanel = memo(({id, query, existingMessages}: Conversati
     }, [data?.length, finishSignalReceived]);
 
 
+    const lastAssistantMessage = useMemo(() => {
+        const assistantMessages = messages?.filter(m => m.role === 'assistant')
+        if (assistantMessages?.length) return assistantMessages[assistantMessages.length-1]
+        else return undefined
+    }, [messages])
     return (
         // Container
         <div>
@@ -183,7 +179,7 @@ export const ConversationPanel = memo(({id, query, existingMessages}: Conversati
 
                     <div className={'flex flex-col gap-y-2'}>
                         <AnswerPanel {...currentQuery} data={data} finishSignalReceived={finishSignalReceived}
-                                     content={currentQuery.content}/>
+                                     content={lastAssistantMessage?.content}/>
                     </div>
                 </div>
 
