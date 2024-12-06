@@ -10,7 +10,10 @@ async function getRedisClient() {
     const redisClient = createClient({
         url: process.env.REDIS_URL
     })
-    redisClient.on('error', (err) => logger.error(err))
+    redisClient.on('error', (err) => {
+        logger.error(err)
+        return false
+    })
     await redisClient.connect()
     return redisClient
 }

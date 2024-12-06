@@ -40,9 +40,6 @@ export const ConversationPanel = memo(({id, query}: ConversationPanelProps) => {
     } = useChat({
         id: id,
         api: `/api/chat`,
-        onError: (err: any) => {
-            toast.error(err.message)
-        },
         onResponse: (response) => {
             console.log(`Response received at ${new Date().toTimeString()}`)
             if (response.status === 429) {

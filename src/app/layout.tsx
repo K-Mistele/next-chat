@@ -38,7 +38,7 @@ export default function RootLayout({
             {children}
         </TooltipProvider>
         <Footer/>
-        <Toaster/>
+        <Toaster theme={'system'} richColors={true}/>
         </body>
         </html>
     );
