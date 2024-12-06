@@ -3,7 +3,7 @@ import {createClient} from 'redis'
 import logger from '@/lib/logger'
 
 const WINDOW_SECONDS = 60
-const MAX_TOKENS = 5
+const MAX_TOKENS = 3
 
 
 async function getRedisClient() {
