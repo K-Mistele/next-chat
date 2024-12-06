@@ -19,13 +19,13 @@ export const KeywordsBadge = memo(function KeywordsBadge(
                 keywords?.length
                     ? (
                         <Badge variant={'secondary'} className={'focus:ring-0 w-fit'}>
-                            <KeySquareIcon className={'size-4'}/>
-                            <span className={'ml-1'}>{keywords.join(', ')}</span>
+                            <KeySquareIcon className={'size-6'}/>
+                            <span className={'ml-1 text-sm'}>{keywords.join(', ')}</span>
                         </Badge>
                     )
                     : (
                         <LoadingBadge className={'w-[250px]'}>
-                            <KeySquareIcon className={'size-4 stroke-white'}/>
+                            <KeySquareIcon className={'size-6 stroke-white'}/>
                         </LoadingBadge>
                     )
 

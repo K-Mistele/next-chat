@@ -29,12 +29,10 @@ export type SourcesMessage = {
     sources: Array<Source>
 }
 
-export type StreamedMessageAnnotationMessage = RewrittenQueryMessage | ExtractedKeywordsMessage | RelatedImagesMessage | SourcesMessage
-
 export type StatusUpdate = {
     type: 'statusUpdate',
     status: 'optimizing' | 'researching' | 'generating' | 'done'
 }
 
-export type StreamedDataMessage = StatusUpdate
+export type StreamedDataMessage = StatusUpdate | RewrittenQueryMessage | ExtractedKeywordsMessage | RelatedImagesMessage | SourcesMessage
 

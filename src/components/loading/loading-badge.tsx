@@ -10,7 +10,7 @@ export interface LoadingBadgeProps {
 export function LoadingBadge({className, children}: LoadingBadgeProps) {
 
     return (
-        <Badge className={cn('animate-pulse rounded-md bg-muted', className)}>
+        <Badge className={cn('animate-pulse bg-muted', className)}>
             {children}
         </Badge>
     )

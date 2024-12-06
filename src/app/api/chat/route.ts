@@ -5,7 +5,7 @@ import logger from '@/lib/logger'
 import {rewriteQuery} from '@/lib/ai/agents/query-rewriter'
 import {getMessageTextContent} from '@/lib/ai/utils'
 import {extractKeywords} from '@/lib/ai/agents/keyword-extractor'
-import type {StreamedMessageAnnotationMessage, Source, StreamedDataMessage} from '@/lib/ai/types'
+import type {Source, StreamedDataMessage} from '@/lib/ai/types'
 import {Chunk, type Document, Image} from '@/db/schema'
 import {findImages} from '@/lib/retrieval/image-retrieval'
 import {findChunks} from '@/lib/retrieval/chunk-retrieval'
@@ -28,18 +28,18 @@ export async function POST(request: Request) {
                 rewriteQuery(userQuery)
                     .then((rewrittenQuery: string) => {
                         if (!rewrittenQuery || !rewrittenQuery.length) throw new Error(`Rewritten query has no length!`)
-                        dataStream.writeMessageAnnotation({
+                        dataStream.writeData({
                             type: 'rewrittenQuery',
                             query: rewrittenQuery
-                        } satisfies StreamedMessageAnnotationMessage)
+                        } satisfies StreamedDataMessage)
                         resolve(rewrittenQuery)
                     })
                     .catch((err: any) => {
                         logger.error(`Error rewriting query: `, err)
-                        dataStream.writeMessageAnnotation({
+                        dataStream.writeData({
                             type: 'rewrittenQuery',
                             query: userQuery
-                        } satisfies StreamedMessageAnnotationMessage)
+                        } satisfies StreamedDataMessage)
                         resolve(userQuery)
                     })
             })
@@ -54,10 +54,10 @@ export async function POST(request: Request) {
                             resolve(null)
                         }
                         else {
-                            dataStream.writeMessageAnnotation({
+                            dataStream.writeData({
                                 type: 'extractedKeywords',
                                 keywords
-                            } satisfies StreamedMessageAnnotationMessage)
+                            } satisfies StreamedDataMessage)
                             resolve(keywords)
                         }
                     })
@@ -78,10 +78,10 @@ export async function POST(request: Request) {
                                     url: img.url,
                                     alt: img.alt || ''
                                 }))
-                                dataStream.writeMessageAnnotation({
+                                dataStream.writeData({
                                     type: 'relatedImages',
                                     imageData
-                                } satisfies StreamedMessageAnnotationMessage)
+                                } satisfies StreamedDataMessage)
                                 logger.info(`Images streamed to client:`, imageData)
                                 resolve(images)
                             })
@@ -108,10 +108,10 @@ export async function POST(request: Request) {
                         const intermediate = performance.now()
                         findChunks(rewrittenQuery, keywords || [], 20)
                             .then((chunks: Array<Omit<Chunk, 'embedding'> & {document: Omit<Document, 'contents'>|null}>)=> {
-                                dataStream.writeMessageAnnotation({
+                                dataStream.writeData({
                                     type: 'sources',
                                     sources: normalizeChunksWithDocumentsToSources(chunks).slice(0, 10) // SHORT
-                                } satisfies StreamedMessageAnnotationMessage)
+                                } satisfies StreamedDataMessage)
 
                                 // Notify the client we're generating now
                                 dataStream.writeData({
@@ -126,19 +126,19 @@ export async function POST(request: Request) {
                             })
                             .catch((err: any) => {
                                 logger.error(`Failed to retrieve chunks:`, err)
-                                dataStream.writeMessageAnnotation({
+                                dataStream.writeData({
                                     type: 'sources',
                                     sources: []
-                                } satisfies  StreamedMessageAnnotationMessage)
+                                } satisfies StreamedDataMessage)
                                 resolve([])
                             })
                     })
                     .catch((err: any) => {
                         logger.error(`Unable to retrieve query and chunks for image retrieval`, err)
-                        dataStream.writeMessageAnnotation({
+                        dataStream.writeData({
                             type: 'sources',
                             sources: []
-                        } satisfies  StreamedMessageAnnotationMessage)
+                        } satisfies StreamedDataMessage)
                     })
             })
 

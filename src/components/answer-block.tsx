@@ -110,7 +110,7 @@ export const AnswerBlock = memo(
                     <section id={'query-details'} className={'flex flex-col gap-y-2 pt-2 pb-0 w-full'}>
                         {/* Memoizations to prevent so many re-renders*/}
                         <QueryStatus finishSignalReceived={finishSignalReceived} status={status}/>
-                        <RewrittenQueryBadge rewrittenQuery={rewrittenQuery}/>
+                        <RewrittenQueryBadge rewrittenQuery={rewrittenQuery || undefined}/>
                         <KeywordsBadge keywords={keywords}/>
                     </section>
 
