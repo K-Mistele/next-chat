@@ -8,6 +8,7 @@ import {AnswerPanel} from '@/components/answer-panel'
 import {StatusUpdate, StreamedDataMessage} from '@/lib/ai/types'
 import {useRouter} from 'next/navigation'
 import {HotKeys} from 'react-hotkeys'
+import {toast} from 'sonner'
 
 
 const keyMap = {
@@ -39,8 +40,14 @@ export const ConversationPanel = memo(({id, query}: ConversationPanelProps) => {
     } = useChat({
         id: id,
         api: `/api/chat`,
+        onError: (err: any) => {
+            toast.error(err.message)
+        },
         onResponse: (response) => {
             console.log(`Response received at ${new Date().toTimeString()}`)
+            if (response.status === 429) {
+                toast.error(`Too many requests! Please try again in a bit.`)
+            }
         },
         onFinish: ({content}) => {
             setCurrentQuery(current => ({
