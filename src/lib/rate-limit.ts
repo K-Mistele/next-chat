@@ -1,14 +1,13 @@
 import {ipAddress} from '@vercel/functions'
-import redis from 'redis'
+import {createClient} from 'redis'
 import logger from '@/lib/logger'
-import moment from 'moment'
 
 const WINDOW_SECONDS = 60
 const MAX_TOKENS = 5
 
 
 async function getRedisClient() {
-    const redisClient = redis.createClient({
+    const redisClient = createClient({
         url: process.env.REDIS_URL
     })
     redisClient.on('error', (err) => logger.error(err))
